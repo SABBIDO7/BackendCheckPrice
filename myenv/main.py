@@ -260,29 +260,110 @@ async def list_inventories(dbName,username):
     finally:
         db.close()
 
-@app.get("/getItemInventories/")
-async def list_ItemInventories(dbName,inventory):
+@app.get("/getInventoryItem/")
+async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
     engine=create_engine(f'mysql+pymysql://root:root@localhost:3307/{dbName}')
     SessionLocal= sessionmaker(autocommit=False, autoflush= False, bind=engine)
     db=SessionLocal()
-    query = text(f"SELECT table_name FROM information_schema.tables WHERE table_name = {inventory}")
+
+
+    try:
+        query = text(f"SELECT * FROM {username}_{inventory} WHERE itemNumber='{itemNumber}' AND Branch='{branch}' LIMIT 1")
+        result =  db.execute(query)
+     
+        row= result.fetchone()
+        if row:
+            # for name in rows:
+            #     print(name[0])
+            #     tables_names.append(name[0])
+            print(row)
+           
+            return {"status":True,"message":"","result":row}
+        else:
+            print("heyy")
+            items_query = text(f"SELECT * FROM items WHERE itemNumber='{itemNumber}' AND Branch='{branch}' LIMIT 1")
+            items_result =  db.execute(items_query)
+     
+            items_row= items_result.fetchone()
+            if items_row:
+
+                    # Extract relevant fields from items_row
+                id_value = items_row[0]
+                
+                itemName_value = items_row[1]
+                itemNumber_value = items_row[2]
+                description_value = items_row[3]
+                branch_value = items_row[4]
+                quantity_value = items_row[5]
+                s1_value = items_row[6]
+                s2_value = items_row[7]
+                s3_value = items_row[8]
+                handQuantity_value = 0
+                vat_value = items_row[10]
+                sp_value = items_row[11]
+                costPrice_value = items_row[12]
+                print(costPrice_value)
+                if costPrice_value==None:
+                    costPrice_value='Null'
+                print("-------------")
+                # Insert into john_abc table
+                insert_query = text(
+                    f"INSERT INTO {username}_{inventory} (id, itemName, itemNumber, Description, Branch, quantity, S1, S2, S3, handQuantity, vat, sp, costPrice) "
+                    f"VALUES ('{id_value}', '{itemName_value}', '{itemNumber_value}', '{description_value}', '{branch_value}', '{quantity_value}', '{s1_value}', '{s2_value}', '{s3_value}', '{handQuantity_value}', '{vat_value}', '{sp_value}', '{costPrice_value}')"
+                )
+                print(id_value)
+                db.execute(insert_query)
+
+                print("Row inserted into john_abc table.")
+                print(items_row)
+            
+            return {"status":True,"message":"The item is inserted to the inventory table","result":items_row}
+    except Exception as e:
+        return {"message": f"Error checking tables: {str(e)}"}
+    # Query the database for the user with the specified username
+    finally:
+        db.close()
+
+
+@app.post("/createInventory/")
+async def list_ItemInventories(dbName,username,inventory):
+    engine=create_engine(f'mysql+pymysql://root:root@localhost:3307/{dbName}')
+    SessionLocal= sessionmaker(autocommit=False, autoflush= False, bind=engine)
+    db=SessionLocal()
+    query = text(f"SELECT table_name FROM information_schema.tables WHERE table_name = '{username}_{inventory}'")
+
 
     try:
 
         result =  db.execute(query)
-     
-        rows= result.fetchall()
-        if result:
-            # for name in rows:
-            #     print(name[0])
-            #     tables_names.append(name[0])
-            table_names = [row[0] for row in rows]
-            print(table_names)
-            return {"status":True,"message": f"Tables starting with '_': {"tabe_names"}","result":table_names}
+        row=result.fetchone()
+        if row:
+            
+            return {"status":False,"message": f"Table name already exsists","result":row[0]}
         else:
-            print("heyy")
+            print("heyy you can create")
+            create_query=text(f"""CREATE TABLE `{username}_{inventory}` (
+	`id` INT(11) NOT NULL AUTO_INCREMENT,
+	`itemName` VARCHAR(120) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+	`itemNumber` VARCHAR(200) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+	`Description` VARCHAR(50) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+	`Branch` INT(11) NULL DEFAULT NULL,
+	`quantity` INT(11) NULL DEFAULT NULL,
+	`S1` DOUBLE NULL DEFAULT NULL,
+	`S2` DOUBLE NULL DEFAULT NULL,
+	`S3` DOUBLE NULL DEFAULT NULL,
+	`handQuantity` INT(11) NULL DEFAULT NULL,
+	`vat` DOUBLE NULL DEFAULT NULL,
+	`sp` VARCHAR(5) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+	`costPrice` DOUBLE NULL DEFAULT NULL,
+	PRIMARY KEY (`id`) USING BTREE,
+	UNIQUE INDEX `id` (`itemNumber`, `Branch`)
+)
+""")
+        create_result =  db.execute(create_query)
 
-            return {"status":False,"message": f"No tables found starting with '_'","result":[]}
+        if create_result:
+            return {"status":True,"message": f"No tables found starting with '_'","result":[]}
     except Exception as e:
         return {"message": f"Error checking tables: {str(e)}"}
     # Query the database for the user with the specified username
