@@ -1,7 +1,8 @@
+import time
 import bcrypt
 from passlib.context import CryptContext
 from fastapi import FastAPI, Depends, HTTPException,status
-from pydantic import BaseModel
+from pydantic import BaseModel, MySQLDsn
 from typing import Annotated
 import models
 from datetime import datetime
@@ -9,6 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import hashlib
 from sqlalchemy import create_engine,func,text
 from sqlalchemy.orm import sessionmaker
+import pymysql
+import mysql.connector
 
 app = FastAPI()
 
@@ -262,67 +265,157 @@ async def list_inventories(dbName,username):
 
 @app.get("/getInventoryItem/")
 async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
-    engine=create_engine(f'mysql+pymysql://root:root@localhost:3307/{dbName}')
-    SessionLocal= sessionmaker(autocommit=False, autoflush= False, bind=engine)
-    db=SessionLocal()
-
+    print("ffr")
+    conn = mysql.connector.connect(
+   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+    cursor = conn.cursor()
+    print("lk alo")
 
     try:
-        query = text(f"SELECT * FROM {username}_{inventory} WHERE itemNumber='{itemNumber}' AND Branch='{branch}' LIMIT 1")
-        result =  db.execute(query)
-     
-        row= result.fetchone()
-        if row:
+        print("h")
+        query = f"SELECT * FROM {inventory} WHERE itemNumber='{itemNumber}' AND Branch='{branch}' LIMIT 1"
+        print("akl")
+        result =  cursor.execute(query)
+        print("ftt")
+        rows = cursor.fetchall()
+        print("lwad33")
+
+
+        if rows:
             # for name in rows:
             #     print(name[0])
             #     tables_names.append(name[0])
-            print(row)
-           
-            return {"status":True,"message":"","result":row}
+            for row in rows:
+                item = {
+                    "id":row[0],
+                    "itemName": row[1],
+                    "itemNumber": row[2],
+                    "Description":row[3],
+                    "Branch": row[4],
+                    "quantity":row[5],
+                    "S1": row[6],
+                    "S2": row[7],
+                    "S3": row[8],
+                    "handQuantity": row[9],
+                    "vat": row[10],
+                    "sp": row[11],
+                    "costPrice": row[12],  
+                }
+
+                return {"status":True,"message":"The item is fetched from the inventory table","item":item}     
         else:
-            print("heyy")
-            items_query = text(f"SELECT * FROM items WHERE itemNumber='{itemNumber}' AND Branch='{branch}' LIMIT 1")
-            items_result =  db.execute(items_query)
-     
-            items_row= items_result.fetchone()
-            if items_row:
+            items_query = f"SELECT * FROM items WHERE itemNumber='{itemNumber}' AND Branch='{branch}' LIMIT 1"
+            items_result =  cursor.execute(items_query)
+            print("mafroud wosil la hons")
+            Allitems= cursor.fetchall()
+            if Allitems:
+                for items in Allitems:
+                    items_row= [str(item) for item in items]
+                    if items_row:
 
-                    # Extract relevant fields from items_row
-                id_value = items_row[0]
+                            # Extract relevant fields from items_row
+                        id_value = items_row[0]
+                        
+                        itemName_value = items_row[1]
+                        itemNumber_value = items_row[2]
+                        description_value = items_row[3]
+                        
+                        branch_value = items_row[4]
+                        quantity_value = items_row[5]
+                        s1_value = items_row[6]
+                        s2_value = items_row[7]
+                        s3_value = items_row[8]
+                        handQuantity_value = 0
+                        vat_value = items_row[10]
+                        if vat_value==None:
+                            vat_value=0
+                        sp_value = items_row[11]
+                        if sp_value==None:
+                            sp_value="" 
                 
-                itemName_value = items_row[1]
-                itemNumber_value = items_row[2]
-                description_value = items_row[3]
-                branch_value = items_row[4]
-                quantity_value = items_row[5]
-                s1_value = items_row[6]
-                s2_value = items_row[7]
-                s3_value = items_row[8]
-                handQuantity_value = 0
-                vat_value = items_row[10]
-                sp_value = items_row[11]
-                costPrice_value = items_row[12]
-                print(costPrice_value)
-                if costPrice_value==None:
-                    costPrice_value='Null'
-                print("-------------")
-                # Insert into john_abc table
-                insert_query = text(
-                    f"INSERT INTO {username}_{inventory} (id, itemName, itemNumber, Description, Branch, quantity, S1, S2, S3, handQuantity, vat, sp, costPrice) "
-                    f"VALUES ('{id_value}', '{itemName_value}', '{itemNumber_value}', '{description_value}', '{branch_value}', '{quantity_value}', '{s1_value}', '{s2_value}', '{s3_value}', '{handQuantity_value}', '{vat_value}', '{sp_value}', '{costPrice_value}')"
-                )
-                print(id_value)
-                db.execute(insert_query)
-
-                print("Row inserted into john_abc table.")
-                print(items_row)
+        
+                        costPrice_value = items_row[12]
+                        if costPrice_value=='None':
+                            costPrice_value=0
+                
             
-            return {"status":True,"message":"The item is inserted to the inventory table","result":items_row}
+                        table_name=f"{username}_{inventory}"
+                        # Insert into john_abc table
+                        insert_query = (
+                            f"INSERT INTO {inventory} (id, itemName, itemNumber, Description, Branch, quantity, S1, S2, S3, handQuantity, vat, sp, costPrice)" 
+                            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+                        )
+
+                        data = (
+                            id_value,
+                            itemName_value,
+                            itemNumber_value,
+                            description_value,
+                            branch_value,
+                            quantity_value,
+                        s1_value,
+                            s2_value,
+                            s3_value,
+                            handQuantity_value,
+                            vat_value,
+                        sp_value,
+                            costPrice_value,
+                            
+                        )
+                        try:
+                            res2 = cursor.execute(insert_query, data)
+                            conn.commit()
+
+                        except Exception as e:
+                            conn.rollback()
+                            return {"message": f"Error checking tables: {str(e)}","item":"empty"}
+                            
+
+
+                        
+                        try:
+                            queryGetItem=f"SELECT * FROM {inventory} WHERE itemNumber=%s AND Branch=%s LIMIT 1"
+                            data=(itemNumber,branch)
+                            cursor.execute(queryGetItem,data)
+                            
+                            itemRow= cursor.fetchone()
+                            #itemRows= [str(item) for item in itemRow]
+
+                            conn.commit()
+                            if itemRow:
+                                item = {
+                                "id":itemRow[0],
+                                "itemName": itemRow[1],
+                                "itemNumber": itemRow[2],
+                                "Description":itemRow[3],
+                                "Branch": itemRow[4],
+                                "quantity":itemRow[5],
+                                "S1": itemRow[6],
+                                "S2": itemRow[7],
+                                "S3": itemRow[8],
+                                "handQuantity": itemRow[9],
+                                "vat": itemRow[10],
+                                "sp": itemRow[11],
+                                "costPrice": itemRow[12],  
+                                }
+                                #row_as_strings = [str(item) for item in itemRows]
+
+                                return {"status":True,"message":"The item is fetched from the inventory table","item":item}
+                            else:
+                                return {"status":False,"message":"The item is not found from the inventory table","item":"empty"}
+                            
+
+                        except Exception as e:
+                            conn.rollback()
+                            return {"message": f"Error in getting item: {str(e)}","item":"empty"}
+            else:
+                return{"status":False,"item":"empty","message":"not Found in the main table"}
+
     except Exception as e:
-        return {"message": f"Error checking tables: {str(e)}"}
+        return {"message": f"Error checking tables: {str(e)}","item":"empty"}
     # Query the database for the user with the specified username
     finally:
-        db.close()
+        conn.close()
 
 
 @app.post("/createInventory/")
