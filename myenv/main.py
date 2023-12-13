@@ -162,24 +162,26 @@ async def authenticate_user(itemNumber,branch,dbName):
 
     
 @app.post("/handeQuantity_update/")
-async def handQuantity_update(itemNumber,handQuantity,branch,dbName):
-    engine=create_engine(f'mysql+pymysql://root:root@localhost:3307/{dbName}')
-    SessionLocal= sessionmaker(autocommit=False, autoflush= False, bind=engine)
-    db=SessionLocal()
-    # Query the database for the user with the specified username
-    item = db.query(models.Items).filter(models.Items.itemNumber == itemNumber,models.Items.Branch==branch).first()
-    # Check if the item exists
-    if item:
-        try:
-            # Update the handQuantity for the item
-            item.handQuantity = handQuantity
-            db.commit()
-            return {"status": True, "message": "Hand Quantity updated successfully"}
-        except Exception as e:
-            db.rollback()
-            raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
-    else:
-        return {"status": False, "message": "Item not found"}
+async def handQuantity_update(itemNumber,handQuantity,branch,dbName, inventory):
+    conn = mysql.connector.connect(
+   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+    cursor = conn.cursor()
+
+
+    try:
+   
+        update=f"""UPDATE {inventory} SET handQuantity = {handQuantity}
+WHERE itemNumber='{itemNumber}' AND Branch={branch}"""
+        print(update)
+        r=cursor.execute(update)
+        print(r)
+        conn.commit()
+        return {"status": True, "message": "Hand Quantity updated successfully"}
+
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+
     
 
     
@@ -254,7 +256,6 @@ async def list_inventories(dbName,username):
             print(table_names)
             return {"status":True,"message": f"Tables starting with '{username}_': {"tabe_names"}","result":table_names}
         else:
-            print("heyy")
 
             return {"status":False,"message": f"No tables found starting with '{username}_'","result":[]}
     except Exception as e:
@@ -265,22 +266,20 @@ async def list_inventories(dbName,username):
 
 @app.get("/getInventoryItem/")
 async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
-    print("ffr")
     conn = mysql.connector.connect(
    user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
     cursor = conn.cursor()
-    print("lk alo")
+    print(itemNumber)
+    print(branch)
+    print(username)
+    print(inventory)
 
     try:
-        print("h")
         query = f"SELECT * FROM {inventory} WHERE itemNumber='{itemNumber}' AND Branch='{branch}' LIMIT 1"
-        print("akl")
         result =  cursor.execute(query)
-        print("ftt")
         rows = cursor.fetchall()
-        print("lwad33")
-
-
+        conn.commit()
+        print(query)
         if rows:
             # for name in rows:
             #     print(name[0])
@@ -364,6 +363,7 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                         )
                         try:
                             res2 = cursor.execute(insert_query, data)
+                            print("heyyyy")
                             conn.commit()
 
                         except Exception as e:
@@ -374,6 +374,7 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
 
                         
                         try:
+                            print("???????????????")
                             queryGetItem=f"SELECT * FROM {inventory} WHERE itemNumber=%s AND Branch=%s LIMIT 1"
                             data=(itemNumber,branch)
                             cursor.execute(queryGetItem,data)
@@ -399,7 +400,7 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                                 "costPrice": itemRow[12],  
                                 }
                                 #row_as_strings = [str(item) for item in itemRows]
-
+                                print("salammmmm")
                                 return {"status":True,"message":"The item is fetched from the inventory table","item":item}
                             else:
                                 return {"status":False,"message":"The item is not found from the inventory table","item":"empty"}
