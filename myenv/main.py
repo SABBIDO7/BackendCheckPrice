@@ -2,7 +2,7 @@ import time
 import bcrypt
 from passlib.context import CryptContext
 from fastapi import FastAPI, Depends, HTTPException,status
-from pydantic import BaseModel, MySQLDsn
+from pydantic import BaseModel
 from typing import Annotated
 import models
 from datetime import datetime
@@ -162,19 +162,22 @@ async def authenticate_user(itemNumber,branch,dbName):
 
     
 @app.post("/handeQuantity_update/")
-async def handQuantity_update(itemNumber,handQuantity,branch,dbName, inventory):
+async def handQuantity_update(itemNumber,handQuantity:int,branch,dbName, inventory,oldHandQuantity:int):
     conn = mysql.connector.connect(
    user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
     cursor = conn.cursor()
 
 
     try:
-   
-        update=f"""UPDATE {inventory} SET handQuantity = {handQuantity}
+
+        
+        totalHandQuantity=handQuantity+oldHandQuantity
+
+        if totalHandQuantity<0:
+            totalHandQuantity=0
+        update=f"""UPDATE {inventory} SET handQuantity = {totalHandQuantity}
 WHERE itemNumber='{itemNumber}' AND Branch={branch}"""
-        print(update)
         r=cursor.execute(update)
-        print(r)
         conn.commit()
         return {"status": True, "message": "Hand Quantity updated successfully"}
 
@@ -269,10 +272,7 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
     conn = mysql.connector.connect(
    user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
     cursor = conn.cursor()
-    print(itemNumber)
-    print(branch)
-    print(username)
-    print(inventory)
+
 
     try:
         query = f"SELECT * FROM {inventory} WHERE itemNumber='{itemNumber}' AND Branch='{branch}' LIMIT 1"
@@ -305,7 +305,6 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
         else:
             items_query = f"SELECT * FROM items WHERE itemNumber='{itemNumber}' AND Branch='{branch}' LIMIT 1"
             items_result =  cursor.execute(items_query)
-            print("mafroud wosil la hons")
             Allitems= cursor.fetchall()
             if Allitems:
                 for items in Allitems:
@@ -363,7 +362,6 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                         )
                         try:
                             res2 = cursor.execute(insert_query, data)
-                            print("heyyyy")
                             conn.commit()
 
                         except Exception as e:
@@ -374,13 +372,11 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
 
                         
                         try:
-                            print("???????????????")
                             queryGetItem=f"SELECT * FROM {inventory} WHERE itemNumber=%s AND Branch=%s LIMIT 1"
                             data=(itemNumber,branch)
                             cursor.execute(queryGetItem,data)
                             
                             itemRow= cursor.fetchone()
-                            #itemRows= [str(item) for item in itemRow]
 
                             conn.commit()
                             if itemRow:
@@ -399,8 +395,7 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                                 "sp": itemRow[11],
                                 "costPrice": itemRow[12],  
                                 }
-                                #row_as_strings = [str(item) for item in itemRows]
-                                print("salammmmm")
+                                
                                 return {"status":True,"message":"The item is fetched from the inventory table","item":item}
                             else:
                                 return {"status":False,"message":"The item is not found from the inventory table","item":"empty"}
@@ -463,3 +458,4 @@ async def list_ItemInventories(dbName,username,inventory):
     # Query the database for the user with the specified username
     finally:
         db.close()
+
