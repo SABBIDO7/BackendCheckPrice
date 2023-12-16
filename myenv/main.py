@@ -134,31 +134,104 @@ async def create_users():
 @app.get("/getItem/")
 async def authenticate_user(itemNumber,branch,dbName):
 
-    engine=create_engine(f'mysql+pymysql://root:root@localhost:3307/{dbName}')
-    models.Base.metadata.create_all(bind=engine)
-
-    SessionLocal= sessionmaker(autocommit=False, autoflush= False, bind=engine)
-
-    db=SessionLocal()
+    conn = mysql.connector.connect(
+   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+    cursor = conn.cursor()
     # Query the database for the user with the specified username
+    items_query = f"SELECT * FROM items WHERE itemNumber='{itemNumber}' AND Branch='{branch}' LIMIT 1"
+    items_result =  cursor.execute(items_query)
+    Allitems= cursor.fetchall()
+    if Allitems:
+        for items in Allitems:
+            items_row= [str(item) for item in items]
+            if items_row:
 
-    item = db.query(models.Items).filter(models.Items.itemNumber == itemNumber,models.Items.Branch==branch).first()
-    totalquantity=0
+                    # Extract relevant fields from items_row
+                id_value = items_row[0]
+                
+                itemName_value = items_row[1]
+                itemNumber_value = items_row[2]
+                description_value = items_row[3]
+                
+                branch_value = items_row[4]
+                quantity_value = items_row[5]
+                s1_value = items_row[6]
+                s2_value = items_row[7]
+                s3_value = items_row[8]
+                handQuantity_value = 0
+                vat_value = items_row[10]
+                if vat_value==None:
+                    vat_value=0
+                sp_value = items_row[11]
+                if sp_value==None:
+                    sp_value="" 
+        
 
-    # Check if the user exists and the provided password matches the stored hashed password
-    if item :
-        items = db.query(models.Items).filter(models.Items.itemNumber == itemNumber).all()
-        if items:
-            item_quantities = [{"branch": item.Branch, "quantity": item.quantity} for item in items]
-            for itemx in items:
-                totalquantity=totalquantity+itemx.quantity
-            return {"item":item,"itemQB":item_quantities,"totalQuantity":totalquantity}  
-        else:
-            return {"item":item,"itemQB":[],"totalQuantity":totalquantity}  
+                costPrice_value = items_row[12]
+                if costPrice_value=='None':
+                    costPrice_value=0
+                image_value = items_row[13]
+                if image_value == 'None':
+                    image_value=''
 
-            # Authentication successful
+
+                item = {
+                    "id":id_value,
+                    "itemName": itemName_value,
+                    "itemNumber": itemNumber_value,
+                    "Description":description_value,
+                    "Branch": branch_value,
+                    "quantity":quantity_value,
+                    "S1": s1_value,
+                    "S2": s2_value,
+                    "S3": s3_value,
+                    "handQuantity":handQuantity_value,
+                    "vat": vat_value,
+                    "sp": sp_value,
+                    "costPrice": costPrice_value,  
+                    "image": image_value
+                }
+        getBranchQunatity=f"""SELECT branch, SUM(quantity) as totalQuantity
+FROM items
+WHERE itemNumber = {itemNumber}
+GROUP BY branch"""
+        iq_result =  cursor.execute(getBranchQunatity)
+        iq= cursor.fetchall()
+        if iq:
+        
+            item_quantities = [{"branch": b[0], "quantity": b[1]} for b in iq]
+        getTotalQunatity=f"""SELECT SUM(quantity) as totalQuantity
+    FROM items
+    WHERE itemNumber = '{itemNumber}'"""
+        it_result =  cursor.execute(getTotalQunatity)
+        it= cursor.fetchall()
+        if it:
+            for tot in it:
+                print("total :")
+                print(tot)
+            totalQunatity=tot[0]
+            return {"item":item,"itemQB":item_quantities,"totalQuantity":totalQunatity}             
     else:
-        return {"item": "empty"}  # Authentication failed
+        return {"item": "empty"} 
+
+
+
+    # totalquantity=0
+
+    # # Check if the user exists and the provided password matches the stored hashed password
+    # if item :
+    #     items = db.query(models.Items).filter(models.Items.itemNumber == itemNumber).all()
+    #     if items:
+    #         item_quantities = [{"branch": item.Branch, "quantity": item.quantity} for item in items]
+    #         for itemx in items:
+    #             totalquantity=totalquantity+itemx.quantity
+    #         return {"item":item,"itemQB":item_quantities,"totalQuantity":totalquantity}  
+    #     else:
+    #         return {"item":item,"itemQB":[],"totalQuantity":totalquantity}  
+
+    #         # Authentication successful
+    # else:
+    #     return {"item": "empty"}  # Authentication failed
 
     
 @app.post("/handeQuantity_update/")
@@ -223,12 +296,14 @@ async def change_branch(username, password, newbranch, dbName):
 
 @app.get("/getBranches/")
 async def list_branches(dbName):
-    engine=create_engine(f'mysql+pymysql://root:root@localhost:3307/{dbName}')
-    SessionLocal= sessionmaker(autocommit=False, autoflush= False, bind=engine)
-    db=SessionLocal()
+    conn = mysql.connector.connect(
+   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+    cursor = conn.cursor()
     # Query the database for the user with the specified username
     try:
-        distinct_branches = db.query(func.distinct(models.Items.Branch)).all()
+        distinct_branches="SELECT DISTINCT branch FROM items"
+        cursor.execute(distinct_branches)
+        rows= cursor.fetchall()
         branches = [item[0] for item in distinct_branches]
         print(branches)
         return {"branches": branches}
@@ -237,21 +312,21 @@ async def list_branches(dbName):
         print(f"Error: {e}")
         return {"error": "An error occurred while fetching branches"}
     finally:
-        db.close()
+        conn.close()
 
 @app.get("/getInventories/")
 async def list_inventories(dbName,username):
-    engine=create_engine(f'mysql+pymysql://root:root@localhost:3307/{dbName}')
-    SessionLocal= sessionmaker(autocommit=False, autoflush= False, bind=engine)
-    db=SessionLocal()
-    query = text(f"SELECT table_name FROM information_schema.tables WHERE table_name LIKE '{username}\\_%'")
+    conn = mysql.connector.connect(
+   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+    cursor = conn.cursor()
+    query = f"SELECT table_name FROM information_schema.tables WHERE table_name LIKE '{username}\\_%'"
 
     try:
 
-        result =  db.execute(query)
+        result =  cursor.execute(query)
      
-        rows= result.fetchall()
-        if result:
+        rows= cursor.fetchall()
+        if rows:
             # for name in rows:
             #     print(name[0])
             #     tables_names.append(name[0])
@@ -265,7 +340,7 @@ async def list_inventories(dbName,username):
         return {"message": f"Error checking tables: {str(e)}"}
     # Query the database for the user with the specified username
     finally:
-        db.close()
+        conn.close()
 
 @app.get("/getInventoryItem/")
 async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
@@ -299,6 +374,7 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                     "vat": row[10],
                     "sp": row[11],
                     "costPrice": row[12],  
+                    "image": row[13]
                 }
 
                 return {"status":True,"message":"The item is fetched from the inventory table","item":item}     
@@ -335,13 +411,16 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                         costPrice_value = items_row[12]
                         if costPrice_value=='None':
                             costPrice_value=0
-                
+                        image_value = items_row[13]
+                        if image_value == 'None':
+                            image_value=''
+                        print(image_value)
             
                         table_name=f"{username}_{inventory}"
                         # Insert into john_abc table
                         insert_query = (
-                            f"INSERT INTO {inventory} (id, itemName, itemNumber, Description, Branch, quantity, S1, S2, S3, handQuantity, vat, sp, costPrice)" 
-                            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+                            f"INSERT INTO {inventory} (id, itemName, itemNumber, Description, Branch, quantity, S1, S2, S3, handQuantity, vat, sp, costPrice, image)" 
+                            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
                         )
 
                         data = (
@@ -358,6 +437,7 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                             vat_value,
                         sp_value,
                             costPrice_value,
+                            image_value
                             
                         )
                         try:
@@ -393,7 +473,8 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                                 "handQuantity": itemRow[9],
                                 "vat": itemRow[10],
                                 "sp": itemRow[11],
-                                "costPrice": itemRow[12],  
+                                "costPrice": itemRow[12], 
+                                "image": itemRow[13]
                                 }
                                 
                                 return {"status":True,"message":"The item is fetched from the inventory table","item":item}
@@ -445,6 +526,7 @@ async def list_ItemInventories(dbName,username,inventory):
 	`vat` DOUBLE NULL DEFAULT NULL,
 	`sp` VARCHAR(5) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
 	`costPrice` DOUBLE NULL DEFAULT NULL,
+    `image` VARCHAR(300) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
 	PRIMARY KEY (`id`) USING BTREE,
 	UNIQUE INDEX `id` (`itemNumber`, `Branch`)
 )
