@@ -1,3 +1,4 @@
+import base64
 import time
 import bcrypt
 from passlib.context import CryptContext
@@ -147,39 +148,44 @@ async def authenticate_user(itemNumber,branch,dbName):
             if items_row:
 
                     # Extract relevant fields from items_row
-                id_value = items_row[0]
+               
                 
-                itemName_value = items_row[1]
-                itemNumber_value = items_row[2]
-                description_value = items_row[3]
+                itemName_value = items_row[2]
+                itemNumber_value = items_row[0]
+                goid_value = items_row[1]
                 
-                branch_value = items_row[4]
-                quantity_value = items_row[5]
-                s1_value = items_row[6]
-                s2_value = items_row[7]
-                s3_value = items_row[8]
+                branch_value = items_row[3]
+                quantity_value = items_row[4]
+                s1_value = items_row[5]
+                s2_value = items_row[6]
+                s3_value = items_row[7]
                 handQuantity_value = 0
-                vat_value = items_row[10]
+                vat_value = items_row[9]
                 if vat_value==None:
                     vat_value=0
-                sp_value = items_row[11]
+                sp_value = items_row[10]
                 if sp_value==None:
                     sp_value="" 
         
 
-                costPrice_value = items_row[12]
+                costPrice_value = items_row[11]
                 if costPrice_value=='None':
                     costPrice_value=0
-                image_value = items_row[13]
+                image_value = items_row[12]
                 if image_value == 'None':
                     image_value=''
 
+                else:
+                    with open(image_value,"rb") as image_file:
+                        image_binary = image_file.read()
+                    image_base64 = base64.b64encode(image_binary).decode("utf-8")
 
+                        
                 item = {
-                    "id":id_value,
+                    
                     "itemName": itemName_value,
                     "itemNumber": itemNumber_value,
-                    "Description":description_value,
+                    "GOID":goid_value,
                     "Branch": branch_value,
                     "quantity":quantity_value,
                     "S1": s1_value,
@@ -189,7 +195,7 @@ async def authenticate_user(itemNumber,branch,dbName):
                     "vat": vat_value,
                     "sp": sp_value,
                     "costPrice": costPrice_value,  
-                    "image": image_value
+                    "image": image_base64
                 }
         getBranchQunatity=f"""SELECT branch, SUM(quantity) as totalQuantity
 FROM items
@@ -235,7 +241,7 @@ GROUP BY branch"""
 
     
 @app.post("/handeQuantity_update/")
-async def handQuantity_update(itemNumber,handQuantity:int,branch,dbName, inventory,oldHandQuantity:int):
+async def handQuantity_update(itemNumber,handQuantity:float,branch,dbName, inventory,oldHandQuantity:float):
     conn = mysql.connector.connect(
    user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
     cursor = conn.cursor()
@@ -246,8 +252,7 @@ async def handQuantity_update(itemNumber,handQuantity:int,branch,dbName, invento
         
         totalHandQuantity=handQuantity+oldHandQuantity
 
-        if totalHandQuantity<0:
-            totalHandQuantity=0
+        print(totalHandQuantity)
         update=f"""UPDATE {inventory} SET handQuantity = {totalHandQuantity}
 WHERE itemNumber='{itemNumber}' AND Branch={branch}"""
         r=cursor.execute(update)
@@ -266,31 +271,38 @@ WHERE itemNumber='{itemNumber}' AND Branch={branch}"""
 @app.post("/updateBranch/", status_code=status.HTTP_201_CREATED)
 async def change_branch(username, password, newbranch, dbName):
     # Query the database for the user with the specified username
-    engine = create_engine(f'mysql+pymysql://root:root@localhost:3307/{dbName}')
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    conn = mysql.connector.connect(
+   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+    cursor = conn.cursor()
 
     try:
-        db = SessionLocal()
-
-        user = db.query(models.Users).filter(models.Users.username == username).first()
 
         # Check if the user exists and the provided password matches the stored hashed password
         hashed_password = hashlib.sha256(password.encode()).hexdigest()
-
-        if user and user.password == hashed_password:
-            checkBranch = db.query(models.Items).filter(models.Items.Branch == newbranch).first()
-            if checkBranch:
-                user.branch = newbranch
-                db.commit()
-                return {"status": "True"}  # Authentication successful
-            else:
-                return {"status": "noBranchFound"}
+        print("nnn")
+        print(newbranch)
+        checkBranch=f"""SELECT * FROM items WHERE Branch='{newbranch}' LIMIT 1"""
+        r=cursor.execute(checkBranch)
+        print("kkk")
+        it= cursor.fetchall()
+        conn.commit()
+        print("ds")
+        if it:
+            print("salammm")
+            update=f"""UPDATE users SET branch = {newbranch}
+WHERE username='{username}' AND password='{hashed_password}'"""
+            r=cursor.execute(update)
+            conn.commit()
+            return {"status": "True"}
         else:
-            return {"status": "False"}  # Authentication failed
+            return {"status": "noBranchFound"}
+
     except Exception as e:
-        return {"status": "Error", "message": str(e)}
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+               
     finally:
-        db.close()
+        conn.close()
 
 
 
@@ -304,7 +316,7 @@ async def list_branches(dbName):
         distinct_branches="SELECT DISTINCT branch FROM items"
         cursor.execute(distinct_branches)
         rows= cursor.fetchall()
-        branches = [item[0] for item in distinct_branches]
+        branches = [item[0] for item in rows]
         print(branches)
         return {"branches": branches}
 
@@ -360,21 +372,23 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
             #     print(name[0])
             #     tables_names.append(name[0])
             for row in rows:
+                with open(row[12],"rb") as image_file:
+                        image_binary = image_file.read()
+                        image_base64 = base64.b64encode(image_binary).decode("utf-8")
                 item = {
-                    "id":row[0],
-                    "itemName": row[1],
-                    "itemNumber": row[2],
-                    "Description":row[3],
-                    "Branch": row[4],
-                    "quantity":row[5],
-                    "S1": row[6],
-                    "S2": row[7],
-                    "S3": row[8],
-                    "handQuantity": row[9],
-                    "vat": row[10],
-                    "sp": row[11],
-                    "costPrice": row[12],  
-                    "image": row[13]
+                    "itemName": row[2],
+                    "itemNumber": row[0],
+                    "GOID":row[1],
+                    "Branch": row[3],
+                    "quantity":row[4],
+                    "S1": row[5],
+                    "S2": row[6],
+                    "S3": row[7],
+                    "handQuantity": row[8],
+                    "vat": row[9],
+                    "sp": row[10],
+                    "costPrice": row[11],  
+                    "image": image_base64
                 }
 
                 return {"status":True,"message":"The item is fetched from the inventory table","item":item}     
@@ -388,46 +402,52 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                     if items_row:
 
                             # Extract relevant fields from items_row
-                        id_value = items_row[0]
+                    
                         
-                        itemName_value = items_row[1]
-                        itemNumber_value = items_row[2]
-                        description_value = items_row[3]
+                        itemName_value = items_row[2]
+                        itemNumber_value = items_row[0]
+                        goid_value = items_row[1]
                         
-                        branch_value = items_row[4]
-                        quantity_value = items_row[5]
-                        s1_value = items_row[6]
-                        s2_value = items_row[7]
-                        s3_value = items_row[8]
+                        branch_value = items_row[3]
+                        quantity_value = items_row[4]
+                        s1_value = items_row[5]
+                        s2_value = items_row[6]
+                        s3_value = items_row[7]
                         handQuantity_value = 0
-                        vat_value = items_row[10]
+                        vat_value = items_row[9]
                         if vat_value==None:
                             vat_value=0
-                        sp_value = items_row[11]
+                        sp_value = items_row[10]
                         if sp_value==None:
                             sp_value="" 
                 
         
-                        costPrice_value = items_row[12]
+                        costPrice_value = items_row[11]
                         if costPrice_value=='None':
                             costPrice_value=0
-                        image_value = items_row[13]
+                        image_value = items_row[12]
                         if image_value == 'None':
                             image_value=''
-                        print(image_value)
+                        
+                        
+                        
+                        
+
             
                         table_name=f"{username}_{inventory}"
                         # Insert into john_abc table
+                        print(inventory)
+                        print(itemNumber_value)
                         insert_query = (
-                            f"INSERT INTO {inventory} (id, itemName, itemNumber, Description, Branch, quantity, S1, S2, S3, handQuantity, vat, sp, costPrice, image)" 
-                            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+                            f"INSERT INTO {inventory} (itemName, itemNumber, GOID, Branch, quantity, S1, S2, S3, handQuantity, vat, sp, costPrice, image)" 
+                            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
                         )
 
                         data = (
-                            id_value,
+                           
                             itemName_value,
                             itemNumber_value,
-                            description_value,
+                            goid_value,
                             branch_value,
                             quantity_value,
                         s1_value,
@@ -460,21 +480,25 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
 
                             conn.commit()
                             if itemRow:
+                                with open(image_value,"rb") as image_file:
+                                    image_binary = image_file.read()
+                                    image_base64 = base64.b64encode(image_binary).decode("utf-8")
+                               
                                 item = {
-                                "id":itemRow[0],
-                                "itemName": itemRow[1],
-                                "itemNumber": itemRow[2],
-                                "Description":itemRow[3],
-                                "Branch": itemRow[4],
-                                "quantity":itemRow[5],
-                                "S1": itemRow[6],
-                                "S2": itemRow[7],
-                                "S3": itemRow[8],
-                                "handQuantity": itemRow[9],
-                                "vat": itemRow[10],
-                                "sp": itemRow[11],
-                                "costPrice": itemRow[12], 
-                                "image": itemRow[13]
+                                
+                                "itemName": itemRow[2],
+                                "itemNumber": itemRow[0],
+                                "GOID":itemRow[1],
+                                "Branch": itemRow[3],
+                                "quantity":itemRow[4],
+                                "S1": itemRow[5],
+                                "S2": itemRow[6],
+                                "S3": itemRow[7],
+                                "handQuantity": itemRow[8],
+                                "vat": itemRow[9],
+                                "sp": itemRow[10],
+                                "costPrice": itemRow[11], 
+                                "image": image_base64
                                 }
                                 
                                 return {"status":True,"message":"The item is fetched from the inventory table","item":item}
@@ -513,23 +537,23 @@ async def list_ItemInventories(dbName,username,inventory):
         else:
             print("heyy you can create")
             create_query=text(f"""CREATE TABLE `{username}_{inventory}` (
-	`id` INT(11) NOT NULL AUTO_INCREMENT,
+	`itemNumber` VARCHAR(20) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+	`GOID` VARCHAR(20) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
 	`itemName` VARCHAR(120) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
-	`itemNumber` VARCHAR(200) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
-	`Description` VARCHAR(50) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
-	`Branch` INT(11) NULL DEFAULT NULL,
-	`quantity` INT(11) NULL DEFAULT NULL,
+	`Branch` VARCHAR(10) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+	`quantity` DOUBLE NULL DEFAULT NULL,
 	`S1` DOUBLE NULL DEFAULT NULL,
 	`S2` DOUBLE NULL DEFAULT NULL,
 	`S3` DOUBLE NULL DEFAULT NULL,
-	`handQuantity` INT(11) NULL DEFAULT NULL,
+	`handQuantity` DOUBLE NULL DEFAULT NULL,
 	`vat` DOUBLE NULL DEFAULT NULL,
 	`sp` VARCHAR(5) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
 	`costPrice` DOUBLE NULL DEFAULT NULL,
-    `image` VARCHAR(300) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
-	PRIMARY KEY (`id`) USING BTREE,
-	UNIQUE INDEX `id` (`itemNumber`, `Branch`)
+	`image` VARCHAR(150) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci'
 )
+COLLATE='utf8mb4_general_ci'
+ENGINE=InnoDB
+;
 """)
         create_result =  db.execute(create_query)
 
