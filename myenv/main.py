@@ -63,48 +63,30 @@ global global_database_url
 async def authenticate_user(username, password, branch,dbName):
     try:
         print("falcommmmm");   # Query the database for the user with the specified username
-        engine=create_engine(f'mysql+pymysql://root:root@localhost:3307/{dbName}')
-        SessionLocal= sessionmaker(autocommit=False, autoflush= False, bind=engine)
-
-        db = SessionLocal()
+        conn = mysql.connector.connect(
+   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+        cursor = conn.cursor()
     
-        user = db.query(models.Users).filter(models.Users.username == username,models.Users.branch==branch).first()
+        
+        userQuery=f"""SELECT * FROM users WHERE username='{username}' AND branch='{branch}' LIMIT 1"""
         hashed_password = hashlib.sha256(password.encode()).hexdigest()
-        print(hashed_password)
-        print(user.username)
-        print(user.password)
-        # Check if the user exists and the provide
-        # d password matches the stored hashed password
-        if user and user.password==hashed_password:
-            return {"status":True}  # Authentication successful
+        items_result =  cursor.execute(userQuery)
+        users= cursor.fetchall()
+        if users:
+            for user in users:
+                if user[1]==hashed_password:
+                    return {"status":True}
+                else:
+                    return {"status":False}
+
         else:
             return {"status":False}  # Authentication failed
     except Exception as e:
         # Handle the error when the database doesn't exist
         return {"status": False, "error": "Database does not exist or connection failed"}
     finally:
-        db.close()  # Close the database connection
-@app.post("/postUser/",status_code=status.HTTP_201_CREATED)
-async def create_users():
-# List of Governorates in Lebanon
+        conn.close()
 
-    username = "yara"  # Replace with the username you want to authenticate
-# Hashing the password during user creation
-    password = "secret_password" 
-    try:
-        engine=create_engine(f'mysql+pymysql://root:root@localhost:3307/fluttercheckprice')
-        SessionLocal= sessionmaker(autocommit=False, autoflush= False, bind=engine)
-
-        db = SessionLocal()
-     
-        db_usr = models.Users(username=username,password=password)
-        db.add(db_usr)
-
-        db.commit()
-        return {"status": "user added successfully"}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=400, detail="Error adding user")
 
 # @app.post("/createItems/",status_code=status.HTTP_201_CREATED)
 # async def create_item(db: db_dependency):
@@ -139,7 +121,7 @@ async def authenticate_user(itemNumber,branch,dbName):
    user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
     cursor = conn.cursor()
     # Query the database for the user with the specified username
-    items_query = f"SELECT * FROM items WHERE itemNumber='{itemNumber}' AND Branch='{branch}' LIMIT 1"
+    items_query = f"""SELECT * FROM items WHERE (itemNumber='{itemNumber}' OR GOID='{itemNumber}') AND Branch='{branch}' LIMIT 1"""
     items_result =  cursor.execute(items_query)
     Allitems= cursor.fetchall()
     if Allitems:
@@ -199,7 +181,7 @@ async def authenticate_user(itemNumber,branch,dbName):
                 }
         getBranchQunatity=f"""SELECT branch, SUM(quantity) as totalQuantity
 FROM items
-WHERE itemNumber = {itemNumber}
+WHERE (itemNumber = '{itemNumber}' OR GOID='{itemNumber}')
 GROUP BY branch"""
         iq_result =  cursor.execute(getBranchQunatity)
         iq= cursor.fetchall()
@@ -208,7 +190,7 @@ GROUP BY branch"""
             item_quantities = [{"branch": b[0], "quantity": b[1]} for b in iq]
         getTotalQunatity=f"""SELECT SUM(quantity) as totalQuantity
     FROM items
-    WHERE itemNumber = '{itemNumber}'"""
+    WHERE (itemNumber = '{itemNumber}' OR GOID='{itemNumber}')"""
         it_result =  cursor.execute(getTotalQunatity)
         it= cursor.fetchall()
         if it:
@@ -254,7 +236,7 @@ async def handQuantity_update(itemNumber,handQuantity:float,branch,dbName, inven
 
         print(totalHandQuantity)
         update=f"""UPDATE {inventory} SET handQuantity = {totalHandQuantity}
-WHERE itemNumber='{itemNumber}' AND Branch={branch}"""
+WHERE (itemNumber='{itemNumber}' OR GOID='{itemNumber}') AND Branch={branch}"""
         r=cursor.execute(update)
         conn.commit()
         return {"status": True, "message": "Hand Quantity updated successfully"}
@@ -362,7 +344,7 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
 
 
     try:
-        query = f"SELECT * FROM {inventory} WHERE itemNumber='{itemNumber}' AND Branch='{branch}' LIMIT 1"
+        query = f"""SELECT * FROM {inventory} WHERE (itemNumber='{itemNumber}' OR GOID='{itemNumber}') AND Branch='{branch}' LIMIT 1"""
         result =  cursor.execute(query)
         rows = cursor.fetchall()
         conn.commit()
@@ -393,7 +375,7 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
 
                 return {"status":True,"message":"The item is fetched from the inventory table","item":item}     
         else:
-            items_query = f"SELECT * FROM items WHERE itemNumber='{itemNumber}' AND Branch='{branch}' LIMIT 1"
+            items_query = f"""SELECT * FROM items WHERE (itemNumber='{itemNumber}' OR GOID='{itemNumber}') AND Branch='{branch}' LIMIT 1"""
             items_result =  cursor.execute(items_query)
             Allitems= cursor.fetchall()
             if Allitems:
@@ -472,8 +454,8 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
 
                         
                         try:
-                            queryGetItem=f"SELECT * FROM {inventory} WHERE itemNumber=%s AND Branch=%s LIMIT 1"
-                            data=(itemNumber,branch)
+                            queryGetItem=f"SELECT * FROM {inventory} WHERE (itemNumber=%s OR GOID=%s) AND Branch=%s LIMIT 1"
+                            data=(itemNumber,itemNumber,branch)
                             cursor.execute(queryGetItem,data)
                             
                             itemRow= cursor.fetchone()
@@ -521,22 +503,26 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
 
 @app.post("/createInventory/")
 async def list_ItemInventories(dbName,username,inventory):
-    engine=create_engine(f'mysql+pymysql://root:root@localhost:3307/{dbName}')
-    SessionLocal= sessionmaker(autocommit=False, autoflush= False, bind=engine)
-    db=SessionLocal()
-    query = text(f"SELECT table_name FROM information_schema.tables WHERE table_name = '{username}_{inventory}'")
+    conn = mysql.connector.connect(
+   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+    cursor = conn.cursor()
+
+    query = f"""SELECT table_name FROM information_schema.tables WHERE table_name = '{username}_{inventory}'"""
 
 
     try:
 
-        result =  db.execute(query)
-        row=result.fetchone()
-        if row:
+        result =  cursor.execute(query)
+        rows = cursor.fetchall()
+        conn.commit()
+        if rows:
+            for row in rows:
+                
             
-            return {"status":False,"message": f"Table name already exsists","result":row[0]}
+                return {"status":False,"message": f"Table name already exsists","result":row[0]}
         else:
             print("heyy you can create")
-            create_query=text(f"""CREATE TABLE `{username}_{inventory}` (
+            create_query=f"""CREATE TABLE `{username}_{inventory}` (
 	`itemNumber` VARCHAR(20) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
 	`GOID` VARCHAR(20) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
 	`itemName` VARCHAR(120) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
@@ -554,14 +540,19 @@ async def list_ItemInventories(dbName,username,inventory):
 COLLATE='utf8mb4_general_ci'
 ENGINE=InnoDB
 ;
-""")
-        create_result =  db.execute(create_query)
+"""
+        create_result =  cursor.execute(create_query)
+        conn.commit()
 
-        if create_result:
+        checkQuery=f"""SELECT table_name FROM information_schema.tables WHERE table_name = '{username}_{inventory}'"""
+        check_result= cursor.execute(checkQuery)
+        rows = cursor.fetchall()
+        print(rows)
+        if rows:
             return {"status":True,"message": f"No tables found starting with '_'","result":[]}
     except Exception as e:
         return {"message": f"Error checking tables: {str(e)}"}
     # Query the database for the user with the specified username
     finally:
-        db.close()
+        conn.close()
 
