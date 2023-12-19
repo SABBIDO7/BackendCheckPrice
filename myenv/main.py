@@ -158,11 +158,15 @@ async def authenticate_user(itemNumber,branch,dbName):
                     image_value=''
 
                 else:
-                    with open(image_value,"rb") as image_file:
-                        image_binary = image_file.read()
-                    image_base64 = base64.b64encode(image_binary).decode("utf-8")
+                    try:
+                        with open(image_value,"rb") as image_file:
+                            image_binary = image_file.read()
+                            image_base64 = base64.b64encode(image_binary).decode("utf-8")
+                            image_value=image_base64
+                    except FileNotFoundError:
+                        image_value=''
 
-                        
+                 
                 item = {
                     
                     "itemName": itemName_value,
@@ -177,7 +181,7 @@ async def authenticate_user(itemNumber,branch,dbName):
                     "vat": vat_value,
                     "sp": sp_value,
                     "costPrice": costPrice_value,  
-                    "image": image_base64
+                    "image": image_value
                 }
         getBranchQunatity=f"""SELECT branch, SUM(quantity) as totalQuantity
 FROM items
@@ -188,6 +192,8 @@ GROUP BY branch"""
         if iq:
         
             item_quantities = [{"branch": b[0], "quantity": b[1]} for b in iq]
+            branches_number = len(item_quantities)
+            print(branches_number)
         getTotalQunatity=f"""SELECT SUM(quantity) as totalQuantity
     FROM items
     WHERE (itemNumber = '{itemNumber}' OR GOID='{itemNumber}')"""
@@ -198,7 +204,7 @@ GROUP BY branch"""
                 print("total :")
                 print(tot)
             totalQunatity=tot[0]
-            return {"item":item,"itemQB":item_quantities,"totalQuantity":totalQunatity}             
+            return {"item":item,"itemQB":item_quantities,"totalQuantity":totalQunatity,"branches_number":branches_number}             
     else:
         return {"item": "empty"} 
 
@@ -350,13 +356,21 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
         conn.commit()
         print(query)
         if rows:
+            print("salam")
             # for name in rows:
             #     print(name[0])
             #     tables_names.append(name[0])
             for row in rows:
-                with open(row[12],"rb") as image_file:
+                try:
+                    print("hhhhhhh3")
+                    with open(row[12],"rb") as image_file:
                         image_binary = image_file.read()
                         image_base64 = base64.b64encode(image_binary).decode("utf-8")
+                        image_value=image_base64
+                        print("hhhhhh")
+                except FileNotFoundError:
+                    image_value=''
+                    print('henege')
                 item = {
                     "itemName": row[2],
                     "itemNumber": row[0],
@@ -370,15 +384,15 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                     "vat": row[9],
                     "sp": row[10],
                     "costPrice": row[11],  
-                    "image": image_base64
+                    "image": image_value
                 }
-
                 return {"status":True,"message":"The item is fetched from the inventory table","item":item}     
         else:
             items_query = f"""SELECT * FROM items WHERE (itemNumber='{itemNumber}' OR GOID='{itemNumber}') AND Branch='{branch}' LIMIT 1"""
             items_result =  cursor.execute(items_query)
             Allitems= cursor.fetchall()
             if Allitems:
+                print("sahih")
                 for items in Allitems:
                     items_row= [str(item) for item in items]
                     if items_row:
@@ -397,10 +411,10 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                         s3_value = items_row[7]
                         handQuantity_value = 0
                         vat_value = items_row[9]
-                        if vat_value==None:
+                        if vat_value=='None':
                             vat_value=0
                         sp_value = items_row[10]
-                        if sp_value==None:
+                        if sp_value=='None':
                             sp_value="" 
                 
         
@@ -408,7 +422,9 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                         if costPrice_value=='None':
                             costPrice_value=0
                         image_value = items_row[12]
+
                         if image_value == 'None':
+                            print('kkkkk')
                             image_value=''
                         
                         
@@ -420,6 +436,7 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                         # Insert into john_abc table
                         print(inventory)
                         print(itemNumber_value)
+                        print(image_value)
                         insert_query = (
                             f"INSERT INTO {inventory} (itemName, itemNumber, GOID, Branch, quantity, S1, S2, S3, handQuantity, vat, sp, costPrice, image)" 
                             "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
@@ -443,8 +460,12 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                             
                         )
                         try:
+                            print('llll')
+                            print(insert_query)
                             res2 = cursor.execute(insert_query, data)
                             conn.commit()
+                            print('lllll')
+                            
 
                         except Exception as e:
                             conn.rollback()
@@ -462,9 +483,13 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
 
                             conn.commit()
                             if itemRow:
-                                with open(image_value,"rb") as image_file:
-                                    image_binary = image_file.read()
-                                    image_base64 = base64.b64encode(image_binary).decode("utf-8")
+                                try:
+                                    with open(image_value,"rb") as image_file:
+                                        image_binary = image_file.read()
+                                        image_base64 = base64.b64encode(image_binary).decode("utf-8")
+                                        image_value=image_base64
+                                except FileNotFoundError:
+                                    image_value=''
                                
                                 item = {
                                 
@@ -480,7 +505,7 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                                 "vat": itemRow[9],
                                 "sp": itemRow[10],
                                 "costPrice": itemRow[11], 
-                                "image": image_base64
+                                "image": image_value
                                 }
                                 
                                 return {"status":True,"message":"The item is fetched from the inventory table","item":item}
