@@ -68,7 +68,7 @@ async def authenticate_user(username, password, branch,dbName):
         cursor = conn.cursor()
     
         
-        userQuery=f"""SELECT * FROM users WHERE username='{username}' AND branch='{branch}' LIMIT 1"""
+        userQuery=f"""SELECT * FROM DC_users WHERE username='{username}' AND branch='{branch}' LIMIT 1"""
         hashed_password = hashlib.sha256(password.encode()).hexdigest()
         items_result =  cursor.execute(userQuery)
         users= cursor.fetchall()
@@ -121,7 +121,7 @@ async def authenticate_user(itemNumber,branch,dbName):
    user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
     cursor = conn.cursor()
     # Query the database for the user with the specified username
-    items_query = f"""SELECT * FROM items WHERE (itemNumber='{itemNumber}' OR GOID='{itemNumber}') AND Branch='{branch}' LIMIT 1"""
+    items_query = f"""SELECT * FROM DC_items WHERE (itemNumber='{itemNumber}' OR GOID='{itemNumber}') AND Branch='{branch}' LIMIT 1"""
     items_result =  cursor.execute(items_query)
     Allitems= cursor.fetchall()
     if Allitems:
@@ -184,7 +184,7 @@ async def authenticate_user(itemNumber,branch,dbName):
                     "image": image_value
                 }
         getBranchQunatity=f"""SELECT branch, SUM(quantity) as totalQuantity
-FROM items
+FROM DC_items
 WHERE (itemNumber = '{itemNumber}' OR GOID='{itemNumber}')
 GROUP BY branch"""
         iq_result =  cursor.execute(getBranchQunatity)
@@ -195,7 +195,7 @@ GROUP BY branch"""
             branches_number = len(item_quantities)
             print(branches_number)
         getTotalQunatity=f"""SELECT SUM(quantity) as totalQuantity
-    FROM items
+    FROM DC_items
     WHERE (itemNumber = '{itemNumber}' OR GOID='{itemNumber}')"""
         it_result =  cursor.execute(getTotalQunatity)
         it= cursor.fetchall()
@@ -241,7 +241,7 @@ async def handQuantity_update(itemNumber,handQuantity:float,branch,dbName, inven
         totalHandQuantity=handQuantity+oldHandQuantity
 
         print(totalHandQuantity)
-        update=f"""UPDATE {inventory} SET handQuantity = {totalHandQuantity}
+        update=f"""UPDATE DC_{inventory} SET handQuantity = {totalHandQuantity}
 WHERE (itemNumber='{itemNumber}' OR GOID='{itemNumber}') AND Branch={branch}"""
         r=cursor.execute(update)
         conn.commit()
@@ -269,7 +269,7 @@ async def change_branch(username, password, newbranch, dbName):
         hashed_password = hashlib.sha256(password.encode()).hexdigest()
         print("nnn")
         print(newbranch)
-        checkBranch=f"""SELECT * FROM items WHERE Branch='{newbranch}' LIMIT 1"""
+        checkBranch=f"""SELECT * FROM DC_items WHERE Branch='{newbranch}' LIMIT 1"""
         r=cursor.execute(checkBranch)
         print("kkk")
         it= cursor.fetchall()
@@ -277,7 +277,7 @@ async def change_branch(username, password, newbranch, dbName):
         print("ds")
         if it:
             print("salammm")
-            update=f"""UPDATE users SET branch = {newbranch}
+            update=f"""UPDATE DC_users SET branch = {newbranch}
 WHERE username='{username}' AND password='{hashed_password}'"""
             r=cursor.execute(update)
             conn.commit()
@@ -301,7 +301,7 @@ async def list_branches(dbName):
     cursor = conn.cursor()
     # Query the database for the user with the specified username
     try:
-        distinct_branches="SELECT DISTINCT branch FROM items"
+        distinct_branches="SELECT DISTINCT branch FROM DC_items"
         cursor.execute(distinct_branches)
         rows= cursor.fetchall()
         branches = [item[0] for item in rows]
@@ -319,7 +319,7 @@ async def list_inventories(dbName,username):
     conn = mysql.connector.connect(
    user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
     cursor = conn.cursor()
-    query = f"SELECT table_name FROM information_schema.tables WHERE table_name LIKE '{username}\\_%'"
+    query = f"SELECT table_name FROM information_schema.tables WHERE table_name LIKE DC_'{username}\\_%'"
 
     try:
 
@@ -350,7 +350,7 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
 
 
     try:
-        query = f"""SELECT * FROM {inventory} WHERE (itemNumber='{itemNumber}' OR GOID='{itemNumber}') AND Branch='{branch}' LIMIT 1"""
+        query = f"""SELECT * FROM DC_{inventory} WHERE (itemNumber='{itemNumber}' OR GOID='{itemNumber}') AND Branch='{branch}' LIMIT 1"""
         result =  cursor.execute(query)
         rows = cursor.fetchall()
         conn.commit()
@@ -388,7 +388,7 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                 }
                 return {"status":True,"message":"The item is fetched from the inventory table","item":item}     
         else:
-            items_query = f"""SELECT * FROM items WHERE (itemNumber='{itemNumber}' OR GOID='{itemNumber}') AND Branch='{branch}' LIMIT 1"""
+            items_query = f"""SELECT * FROM DC_items WHERE (itemNumber='{itemNumber}' OR GOID='{itemNumber}') AND Branch='{branch}' LIMIT 1"""
             items_result =  cursor.execute(items_query)
             Allitems= cursor.fetchall()
             if Allitems:
@@ -438,7 +438,7 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                         print(itemNumber_value)
                         print(image_value)
                         insert_query = (
-                            f"INSERT INTO {inventory} (itemName, itemNumber, GOID, Branch, quantity, S1, S2, S3, handQuantity, vat, sp, costPrice, image)" 
+                            f"INSERT INTO DC_{inventory} (itemName, itemNumber, GOID, Branch, quantity, S1, S2, S3, handQuantity, vat, sp, costPrice, image)" 
                             "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
                         )
 
@@ -475,7 +475,7 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
 
                         
                         try:
-                            queryGetItem=f"SELECT * FROM {inventory} WHERE (itemNumber=%s OR GOID=%s) AND Branch=%s LIMIT 1"
+                            queryGetItem=f"SELECT * FROM DC_{inventory} WHERE (itemNumber=%s OR GOID=%s) AND Branch=%s LIMIT 1"
                             data=(itemNumber,itemNumber,branch)
                             cursor.execute(queryGetItem,data)
                             
@@ -532,7 +532,7 @@ async def list_ItemInventories(dbName,username,inventory):
    user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
     cursor = conn.cursor()
 
-    query = f"""SELECT table_name FROM information_schema.tables WHERE table_name = '{username}_{inventory}'"""
+    query = f"""SELECT table_name FROM information_schema.tables WHERE table_name = 'DC_{username}_{inventory}'"""
 
 
     try:
@@ -547,7 +547,7 @@ async def list_ItemInventories(dbName,username,inventory):
                 return {"status":False,"message": f"Table name already exsists","result":row[0]}
         else:
             print("heyy you can create")
-            create_query=f"""CREATE TABLE `{username}_{inventory}` (
+            create_query=f"""CREATE TABLE `DC_{username}_{inventory}` (
 	`itemNumber` VARCHAR(20) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
 	`GOID` VARCHAR(20) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
 	`itemName` VARCHAR(120) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
@@ -569,7 +569,7 @@ ENGINE=InnoDB
         create_result =  cursor.execute(create_query)
         conn.commit()
 
-        checkQuery=f"""SELECT table_name FROM information_schema.tables WHERE table_name = '{username}_{inventory}'"""
+        checkQuery=f"""SELECT table_name FROM information_schema.tables WHERE table_name = 'DC_{username}_{inventory}'"""
         check_result= cursor.execute(checkQuery)
         rows = cursor.fetchall()
         print(rows)
