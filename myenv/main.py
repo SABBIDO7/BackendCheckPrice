@@ -319,7 +319,7 @@ async def list_inventories(dbName,username):
     conn = mysql.connector.connect(
    user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
     cursor = conn.cursor()
-    query = f"SELECT table_name FROM information_schema.tables WHERE table_name LIKE DC_'{username}\\_%'"
+    query = f"SELECT table_name FROM information_schema.tables WHERE table_name LIKE 'DC_{username}\\_%'"
 
     try:
 
@@ -350,8 +350,11 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
 
 
     try:
-        query = f"""SELECT * FROM DC_{inventory} WHERE (itemNumber='{itemNumber}' OR GOID='{itemNumber}') AND Branch='{branch}' LIMIT 1"""
+        query = f"""SELECT * FROM {inventory} WHERE (itemNumber='{itemNumber}' OR GOID='{itemNumber}') AND Branch='{branch}' LIMIT 1"""
+        print(query)
+
         result =  cursor.execute(query)
+
         rows = cursor.fetchall()
         conn.commit()
         print(query)
