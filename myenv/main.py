@@ -241,7 +241,7 @@ async def handQuantity_update(itemNumber,handQuantity:float,branch,dbName, inven
         totalHandQuantity=handQuantity+oldHandQuantity
 
         print(totalHandQuantity)
-        update=f"""UPDATE DC_{inventory} SET handQuantity = {totalHandQuantity}
+        update=f"""UPDATE {inventory} SET handQuantity = {totalHandQuantity}
 WHERE (itemNumber='{itemNumber}' OR GOID='{itemNumber}') AND Branch={branch}"""
         r=cursor.execute(update)
         conn.commit()
@@ -277,7 +277,7 @@ async def change_branch(username, password, newbranch, dbName):
         print("ds")
         if it:
             print("salammm")
-            update=f"""UPDATE DC_users SET branch = {newbranch}
+            update=f"""UPDATE DC_users SET branch = '{newbranch}'
 WHERE username='{username}' AND password='{hashed_password}'"""
             r=cursor.execute(update)
             conn.commit()
@@ -440,8 +440,9 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                         print(inventory)
                         print(itemNumber_value)
                         print(image_value)
+                        print("mNTahhhhhhh")
                         insert_query = (
-                            f"INSERT INTO DC_{inventory} (itemName, itemNumber, GOID, Branch, quantity, S1, S2, S3, handQuantity, vat, sp, costPrice, image)" 
+                            f"INSERT INTO {inventory} (itemName, itemNumber, GOID, Branch, quantity, S1, S2, S3, handQuantity, vat, sp, costPrice, image)" 
                             "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
                         )
 
@@ -478,7 +479,7 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
 
                         
                         try:
-                            queryGetItem=f"SELECT * FROM DC_{inventory} WHERE (itemNumber=%s OR GOID=%s) AND Branch=%s LIMIT 1"
+                            queryGetItem=f"SELECT * FROM {inventory} WHERE (itemNumber=%s OR GOID=%s) AND Branch=%s LIMIT 1"
                             data=(itemNumber,itemNumber,branch)
                             cursor.execute(queryGetItem,data)
                             
