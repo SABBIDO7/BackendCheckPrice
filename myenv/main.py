@@ -1,18 +1,9 @@
 import base64
-import time
-import bcrypt
-from passlib.context import CryptContext
-from fastapi import FastAPI, Depends, HTTPException,status
-from pydantic import BaseModel
-from typing import Annotated
-import models
-from datetime import datetime
+from fastapi import FastAPI, HTTPException,status
 from fastapi.middleware.cors import CORSMiddleware
 import hashlib
-from sqlalchemy import create_engine,func,text
-from sqlalchemy.orm import sessionmaker
-import pymysql
 import mysql.connector
+from datetime import datetime
 
 app = FastAPI()
 
@@ -29,7 +20,7 @@ app.add_middleware(
 
 # Define a global variable to store the database URL
 
-global global_database_url 
+
 
 
 # @app.post("/dbName/",status_code=status.HTTP_201_CREATED)
@@ -242,7 +233,8 @@ async def handQuantity_update(itemNumber,handQuantity:float,branch,dbName, inven
 
         print(totalHandQuantity)
         update=f"""UPDATE {inventory} SET handQuantity = {totalHandQuantity}
-WHERE (itemNumber='{itemNumber}' OR GOID='{itemNumber}') AND Branch={branch}"""
+WHERE (itemNumber='{itemNumber}' OR GOID='{itemNumber}') AND Branch='{branch}'"""
+        print(update)
         r=cursor.execute(update)
         conn.commit()
         return {"status": True, "message": "Hand Quantity updated successfully"}
@@ -347,7 +339,7 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
     conn = mysql.connector.connect(
    user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
     cursor = conn.cursor()
-
+    print(inventory)
 
     try:
         query = f"""SELECT * FROM {inventory} WHERE (itemNumber='{itemNumber}' OR GOID='{itemNumber}') AND Branch='{branch}' LIMIT 1"""
@@ -536,8 +528,11 @@ async def list_ItemInventories(dbName,username,inventory):
    user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
     cursor = conn.cursor()
 
-    query = f"""SELECT table_name FROM information_schema.tables WHERE table_name = 'DC_{username}_{inventory}'"""
-
+    query = f"""SELECT table_name FROM information_schema.tables WHERE table_name like 'DC_{username}_{inventory}%'"""
+    current_datetime = datetime.now()
+    abbreviated_day = current_datetime.strftime("%a")[:2]
+    formatted_datetime = current_datetime.strftime(f"{abbreviated_day}%Y%m%d_%H%M%S")
+    print(formatted_datetime)
 
     try:
 
@@ -546,12 +541,14 @@ async def list_ItemInventories(dbName,username,inventory):
         conn.commit()
         if rows:
             for row in rows:
-                
+                table_name=row[0]
+                print("hohohoho")
+                print(table_name)
             
-                return {"status":False,"message": f"Table name already exsists","result":row[0]}
+                return {"status":False,"message": f"Table name already exsists","result":table_name}
         else:
             print("heyy you can create")
-            create_query=f"""CREATE TABLE `DC_{username}_{inventory}` (
+            create_query=f"""CREATE TABLE `DC_{username}_{inventory}_{formatted_datetime}` (
 	`itemNumber` VARCHAR(20) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
 	`GOID` VARCHAR(20) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
 	`itemName` VARCHAR(120) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
@@ -573,12 +570,12 @@ ENGINE=InnoDB
         create_result =  cursor.execute(create_query)
         conn.commit()
 
-        checkQuery=f"""SELECT table_name FROM information_schema.tables WHERE table_name = 'DC_{username}_{inventory}'"""
+        checkQuery=f"""SELECT table_name FROM information_schema.tables WHERE table_name like 'DC_{username}_{inventory}%'"""
         check_result= cursor.execute(checkQuery)
         rows = cursor.fetchall()
         print(rows)
         if rows:
-            return {"status":True,"message": f"No tables found starting with '_'","result":[]}
+            return {"status":True,"message": f"No tables found starting with '_'","result":rows[0]}
     except Exception as e:
         return {"message": f"Error checking tables: {str(e)}"}
     # Query the database for the user with the specified username
