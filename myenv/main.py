@@ -58,13 +58,13 @@ async def authenticate_user(username, branch,dbName):
         conn = mysql.connector.connect(
    user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
         cursor = conn.cursor()
-        distinct_branches="SELECT DISTINCT branch FROM DC_items"
-        cursor.execute(distinct_branches)
-        rows= cursor.fetchall()
-        branches = [item[0] for item in rows]
-        for b in branches:
-            if branch== b :
-                return {"status":True}
+        # distinct_branches="SELECT DISTINCT branch FROM DC_items"
+        # cursor.execute(distinct_branches)
+        # rows= cursor.fetchall()
+        # branches = [item[0] for item in rows]
+        # for b in branches:
+        #     if branch== b :
+        #         return {"status":True}
         
         
         # userQuery=f"""SELECT * FROM DC_users WHERE username='{username}' AND branch='{branch}' LIMIT 1"""
@@ -80,7 +80,7 @@ async def authenticate_user(username, branch,dbName):
 
         # else:
         #     return {"status":False}  # Authentication failed
-        return {"status":False,"error":"branch doesn't exsist"}
+        return {"status":True}
     except Exception as e:
         # Handle the error when the database doesn't exist
         return {"status": False, "error": "Database does not exist or connection failed"}
