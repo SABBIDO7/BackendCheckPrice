@@ -355,7 +355,8 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
         query = f"""SELECT * FROM {inventory} WHERE (itemNumber=UPPER('{itemNumber}') OR GOID=UPPER('{itemNumber}')) AND Branch=UPPER('{branch}') LIMIT 1"""
         print(query)
 
-        result =  cursor.execute(query)
+        cursor.execute(query)
+
 
         rows = cursor.fetchall()
         conn.commit()
@@ -393,24 +394,32 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                 }
                 return {"status":True,"message":"The item is fetched from the inventory table","item":item}     
         else:
+            ifound='1'
+
             items_query = f"""SELECT * FROM DC_items WHERE (itemNumber=UPPER('{itemNumber}') OR GOID=UPPER('{itemNumber}')) AND Branch=UPPER('{branch}') LIMIT 1"""
+    
             items_result =  cursor.execute(items_query)
             Allitems= cursor.fetchall()
+            if Allitems==[]:
+                ifound='2'
+                items_query = f"""SELECT * FROM DC_items WHERE (itemNumber=UPPER('{itemNumber}') OR GOID=UPPER('{itemNumber}')) LIMIT 1"""
+    
+            items_result =  cursor.execute(items_query)
+            Allitems= cursor.fetchall()
+
             if Allitems:
                 print("sahih")
                 for items in Allitems:
                     items_row= [str(item) for item in items]
-                    if items_row:
-
-                            # Extract relevant fields from items_row
-                    
-                        
+                    if items_row:         
                         itemName_value = items_row[2]
                         itemNumber_value = items_row[0]
                         goid_value = items_row[1]
-                        
-                        branch_value = items_row[3]
-                        quantity_value = items_row[4]
+                        branch_value= branch
+                        if ifound=='1':
+                            quantity_value = items_row[4]
+                        else:
+                            quantity_value=0
                         s1_value = items_row[5]
                         s2_value = items_row[6]
                         s3_value = items_row[7]
