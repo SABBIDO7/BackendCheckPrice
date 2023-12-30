@@ -164,7 +164,7 @@ async def authenticate_user(itemNumber,branch,dbName):
                             image_binary = image_file.read()
                             image_base64 = base64.b64encode(image_binary).decode("utf-8")
                             image_value=image_base64
-                    except FileNotFoundError:
+                    except :
                         image_value=''
 
                  
@@ -321,7 +321,7 @@ async def list_inventories(dbName,username):
     conn = mysql.connector.connect(
    user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
     cursor = conn.cursor()
-    query = f"SELECT table_name FROM information_schema.tables WHERE table_name LIKE UPPER('DC_{username}\\_%')"
+    query = f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{dbName}' AND table_name LIKE UPPER('DC_{username}\\_%')"
 
     try:
 
@@ -374,7 +374,7 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                         image_base64 = base64.b64encode(image_binary).decode("utf-8")
                         image_value=image_base64
                         print("hhhhhh")
-                except FileNotFoundError:
+                except :
                     image_value=''
                     print('henege')
                 item = {
@@ -390,7 +390,11 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                     "vat": row[9],
                     "sp": row[10],
                     "costPrice": row[11],  
-                    "image": image_value
+                    "image": image_value,
+                    "Disc1":row[13],
+                    "Disc2":row[14],
+                    "Disc3":row[15],
+                    "Qunit":row[16]
                 }
                 return {"status":True,"message":"The item is fetched from the inventory table","item":item}     
         else:
@@ -440,6 +444,15 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                         if image_value == 'None':
                             print('kkkkk')
                             image_value=''
+                        Disc1=items_row[13]
+                        Disc2=items_row[14]
+                        Disc3=items_row[15]
+                        Qunit=items_row[16]
+                        if Qunit=='None':
+                            Qunit=0
+                   
+                            
+
                         
                         
                         
@@ -453,33 +466,36 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                         print(image_value)
                         print("mNTahhhhhhh")
                         insert_query = (
-                            f"INSERT INTO {inventory} (itemName, itemNumber, GOID, Branch, quantity, S1, S2, S3, handQuantity, vat, sp, costPrice, image)" 
-                            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+                            f"INSERT INTO {inventory} (itemName, itemNumber, GOID, Branch, quantity, S1, S2, S3, handQuantity, vat, sp, costPrice, image, Disc1, Disc2, Disc3, Qunit)" 
+                            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
                         )
-
+                        print(insert_query)
+                        print("rtf")
                         data = (
-                           
-                            itemName_value,
-                            itemNumber_value,
-                            goid_value,
-                            branch_value,
-                            quantity_value,
+                        itemName_value,
+                        itemNumber_value,
+                        goid_value,
+                        branch_value,
+                        quantity_value,
                         s1_value,
-                            s2_value,
-                            s3_value,
-                            handQuantity_value,
-                            vat_value,
+                        s2_value,
+                        s3_value,
+                        handQuantity_value,
+                        vat_value,
                         sp_value,
-                            costPrice_value,
-                            image_value
-                            
+                        costPrice_value,
+                        image_value,
+                        Disc1,
+                        Disc2,
+                        Disc3,
+                        Qunit
                         )
+                        print(insert_query)
                         try:
                             print('llll')
                             print(insert_query)
                             res2 = cursor.execute(insert_query, data)
                             conn.commit()
-                            print('lllll')
                             
 
                         except Exception as e:
@@ -492,20 +508,23 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                         try:
                             queryGetItem=f"SELECT * FROM {inventory} WHERE (itemNumber=%s OR GOID=%s) AND Branch=%s LIMIT 1"
                             data=(itemNumber.upper(),itemNumber.upper(),branch.upper())
-                            cursor.execute(queryGetItem,data)
+                            print("hkm")
                             
+                            cursor.execute(queryGetItem,data)
+                            print(queryGetItem)
                             itemRow= cursor.fetchone()
-
+                            print("sde")
                             conn.commit()
                             if itemRow:
+                                print("eeee")
                                 try:
                                     with open(image_value,"rb") as image_file:
                                         image_binary = image_file.read()
                                         image_base64 = base64.b64encode(image_binary).decode("utf-8")
                                         image_value=image_base64
-                                except FileNotFoundError:
+                                except:
                                     image_value=''
-                               
+                                print("ssssss")
                                 item = {
                                 
                                 "itemName": itemRow[2],
@@ -520,9 +539,13 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                                 "vat": itemRow[9],
                                 "sp": itemRow[10],
                                 "costPrice": itemRow[11], 
-                                "image": image_value
+                                "image": image_value,
+                                "Disc1":itemRow[13],
+                                "Disc2":itemRow[14],
+                                "Disc3":itemRow[15],
+                                "Qunit":itemRow[16]
                                 }
-                                
+                                print(item)    
                                 return {"status":True,"message":"The item is fetched from the inventory table","item":item}
                             else:
                                 return {"status":False,"message":"The item is not found from the inventory table","item":"empty"}
@@ -547,7 +570,7 @@ async def list_ItemInventories(dbName,username,inventory):
    user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
     cursor = conn.cursor()
 
-    query = f"""SELECT table_name FROM information_schema.tables WHERE table_name like UPPER('DC_{username}_{inventory}%')"""
+    query = f"""SELECT table_name FROM information_schema.tables WHERE table_schema = '{dbName}' AND table_name like UPPER('DC_{username}_{inventory}%')"""
     current_datetime = datetime.now()
     print(query)
     abbreviated_day = current_datetime.strftime("%a")[:2]
@@ -586,7 +609,11 @@ async def list_ItemInventories(dbName,username,inventory):
 	`vat` DOUBLE NULL DEFAULT NULL,
 	`sp` VARCHAR(5) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
 	`costPrice` DOUBLE NULL DEFAULT NULL,
-	`image` VARCHAR(150) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci'
+	`image` VARCHAR(150) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+    `Disc1` DOUBLE NULL DEFAULT NULL,
+	`Disc2` DOUBLE NULL DEFAULT NULL,
+	`Disc3` DOUBLE NULL DEFAULT NULL,
+	`Qunit` DOUBLE NULL DEFAULT NULL
 )
 COLLATE='utf8mb4_general_ci'
 ENGINE=InnoDB
@@ -596,7 +623,7 @@ ENGINE=InnoDB
         create_result =  cursor.execute(create_query)
         conn.commit()
 
-        checkQuery=f"""SELECT table_name FROM information_schema.tables WHERE table_name like UPPER('DC_{username}_{inventory}%')"""
+        checkQuery=f"""SELECT table_name FROM information_schema.tables WHERE table_schema = '{dbName}' AND table_name like UPPER('DC_{username}_{inventory}%')"""
         check_result= cursor.execute(checkQuery)
         rows = cursor.fetchall()
         print(rows)
