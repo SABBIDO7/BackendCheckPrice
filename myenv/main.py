@@ -9,8 +9,6 @@ from datetime import datetime
 app = FastAPI()
 
 
-# Allow all origins for testing; specify actual origins in production
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,36 +16,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Define a global variable to store the database URL
-
-
-
-
-# @app.post("/dbName/",status_code=status.HTTP_201_CREATED)
-# def get_database_url(db_name):
-#     # Assuming you have a default database URL here
-#     # Modify this function to construct the URL based on the provided db_name
-#     global_database_url = f'mysql+pymysql://root:root@localhost:3307/{db_name}'
-#     return global_database_url
-
-
-
-# def get_db(global_database_url):
-#     db = SessionLocal(global_database_url)
-#     print("ana ble getdb"+global_database_url)
-#     try:
-#         yield db
-#     finally:
-#         db.close()
-
-# db_dependency=Annotated[Session,Depends(get_db)]
-
-# Define a CryptContext for password hashing
-#password_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-#models.Base.metadata.create_all(bind=engine)
-
 
 
 
@@ -58,28 +26,7 @@ async def authenticate_user(username, branch,dbName):
         conn = mysql.connector.connect(
    user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
         cursor = conn.cursor()
-        # distinct_branches="SELECT DISTINCT branch FROM DC_items"
-        # cursor.execute(distinct_branches)
-        # rows= cursor.fetchall()
-        # branches = [item[0] for item in rows]
-        # for b in branches:
-        #     if branch== b :
-        #         return {"status":True}
-        
-        
-        # userQuery=f"""SELECT * FROM DC_users WHERE username='{username}' AND branch='{branch}' LIMIT 1"""
-        # hashed_password = hashlib.sha256(password.encode()).hexdigest()
-        # items_result =  cursor.execute(userQuery)
-        # users= cursor.fetchall()
-        # if users:
-        #     for user in users:
-        #         if user[1]==hashed_password:
-        #             return {"status":True}
-        #         else:
-        #             return {"status":False}
 
-        # else:
-        #     return {"status":False}  # Authentication failed
         return {"status":True}
     except Exception as e:
         # Handle the error when the database doesn't exist
@@ -87,33 +34,7 @@ async def authenticate_user(username, branch,dbName):
     finally:
         conn.close()
 
-
-# @app.post("/createItems/",status_code=status.HTTP_201_CREATED)
-# async def create_item(db: db_dependency):
-#     # Create an instance of the Item model
-
-#     try:
-        
-     
-#         db_usr = models.Items(   itemName="Water",
-#     itemNumber="123456",
-#     Description="Sohat",
-#     Branch=1,
-#     quantity=5,
-#     S1=10.00,
-#     S2=10.00,
-#     S3=10.00,
-# )
-#         db.add(db_usr)
-
-#         db.commit()
-#         return {"Status": "item added"}
-#     except Exception as e:
-#         db.rollback()
-#         raise HTTPException(status_code=400, detail="Error adding item")
     
-
-
 @app.get("/getItem/")
 async def authenticate_user(itemNumber,branch,dbName):
 
@@ -122,7 +43,7 @@ async def authenticate_user(itemNumber,branch,dbName):
     cursor = conn.cursor()
     
     # Query the database for the user with the specified username
-    items_query = f"""SELECT * FROM DC_items WHERE (itemNumber=UPPER('{itemNumber}') OR GOID=UPPER('{itemNumber}')) AND Branch=UPPER('{branch}') LIMIT 1"""
+    items_query = f"""SELECT * FROM DC_items WHERE itemNumber=UPPER('{itemNumber}') LIMIT 1"""
     items_result =  cursor.execute(items_query)
     Allitems= cursor.fetchall()
     if Allitems:
@@ -144,10 +65,10 @@ async def authenticate_user(itemNumber,branch,dbName):
                 s3_value = items_row[7]
                 handQuantity_value = 0
                 vat_value = items_row[9]
-                if vat_value==None:
+                if vat_value=="None":
                     vat_value=0
                 sp_value = items_row[10]
-                if sp_value==None:
+                if sp_value=="None":
                     sp_value="" 
         
 
@@ -158,6 +79,7 @@ async def authenticate_user(itemNumber,branch,dbName):
                 if image_value == 'None':
                     image_value=''
 
+
                 else:
                     try:
                         with open(image_value,"rb") as image_file:
@@ -167,7 +89,18 @@ async def authenticate_user(itemNumber,branch,dbName):
                     except :
                         image_value=''
 
-                 
+                disc1_value=items_row[13]
+                if disc1_value=='None':
+                    disc1_value=0
+                disc2_value=items_row[14]
+                if disc2_value=='None':
+                    disc2_value=0
+                disc3_value=items_row[15]
+                if disc3_value=='None':
+                    disc3_value=0
+                qUnit_value=items_row[16]
+                if qUnit_value=='None':
+                    qUnit_value=0
                 item = {
                     
                     "itemName": itemName_value,
@@ -182,12 +115,15 @@ async def authenticate_user(itemNumber,branch,dbName):
                     "vat": vat_value,
                     "sp": sp_value,
                     "costPrice": costPrice_value,  
-                    "image": image_value
+                    "image": image_value,
+                    "Disc1": float(disc1_value),
+                    "Disc2": float(disc2_value),
+                    "Disc3": float(disc3_value),
+                    "Qunit": float(qUnit_value)
                 }
         getBranchQunatity=f"""SELECT branch, SUM(quantity) as totalQuantity
 FROM DC_items
-WHERE (itemNumber = UPPER('{itemNumber}') OR GOID=UPPER('{itemNumber}'))
-GROUP BY branch"""
+WHERE itemNumber = UPPER('{itemNumber}') GROUP BY branch"""
         iq_result =  cursor.execute(getBranchQunatity)
         iq= cursor.fetchall()
         if iq:
@@ -197,7 +133,7 @@ GROUP BY branch"""
             print(branches_number)
         getTotalQunatity=f"""SELECT SUM(quantity) as totalQuantity
     FROM DC_items
-    WHERE (itemNumber = UPPER('{itemNumber}') OR GOID=UPPER('{itemNumber}'))"""
+    WHERE itemNumber = UPPER('{itemNumber}')"""
         it_result =  cursor.execute(getTotalQunatity)
         it= cursor.fetchall()
         if it:
@@ -205,28 +141,11 @@ GROUP BY branch"""
                 print("total :")
                 print(tot)
             totalQunatity=tot[0]
+            print(item)
             return {"item":item,"itemQB":item_quantities,"totalQuantity":totalQunatity,"branches_number":branches_number}             
     else:
         return {"item": "empty"} 
 
-
-
-    # totalquantity=0
-
-    # # Check if the user exists and the provided password matches the stored hashed password
-    # if item :
-    #     items = db.query(models.Items).filter(models.Items.itemNumber == itemNumber).all()
-    #     if items:
-    #         item_quantities = [{"branch": item.Branch, "quantity": item.quantity} for item in items]
-    #         for itemx in items:
-    #             totalquantity=totalquantity+itemx.quantity
-    #         return {"item":item,"itemQB":item_quantities,"totalQuantity":totalquantity}  
-    #     else:
-    #         return {"item":item,"itemQB":[],"totalQuantity":totalquantity}  
-
-    #         # Authentication successful
-    # else:
-    #     return {"item": "empty"}  # Authentication failed
 
     
 @app.post("/handeQuantity_update/")
@@ -243,7 +162,7 @@ async def handQuantity_update(itemNumber,handQuantity:float,branch,dbName, inven
 
         print(totalHandQuantity)
         update=f"""UPDATE {inventory} SET handQuantity = {totalHandQuantity}
-WHERE (itemNumber=UPPER('{itemNumber}') OR GOID=UPPER('{itemNumber}')) AND Branch=UPPER('{branch}')"""
+WHERE itemNumber=UPPER('{itemNumber}')"""
         print(update)
         r=cursor.execute(update)
         conn.commit()
@@ -258,41 +177,41 @@ WHERE (itemNumber=UPPER('{itemNumber}') OR GOID=UPPER('{itemNumber}')) AND Branc
     
 
 
-# @app.post("/updateBranch/", status_code=status.HTTP_201_CREATED)
-# async def change_branch(username, password, newbranch, dbName):
-#     # Query the database for the user with the specified username
-#     conn = mysql.connector.connect(
-#    user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
-#     cursor = conn.cursor()
+@app.post("/updateBranch/", status_code=status.HTTP_201_CREATED)
+async def change_branch(username, password, newbranch, dbName):
+    # Query the database for the user with the specified username
+    conn = mysql.connector.connect(
+   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+    cursor = conn.cursor()
 
-#     try:
+    try:
 
-#         # Check if the user exists and the provided password matches the stored hashed password
-#         hashed_password = hashlib.sha256(password.encode()).hexdigest()
-#         print("nnn")
-#         print(newbranch)
-#         checkBranch=f"""SELECT * FROM DC_items WHERE Branch='{newbranch}' LIMIT 1"""
-#         r=cursor.execute(checkBranch)
-#         print("kkk")
-#         it= cursor.fetchall()
-#         conn.commit()
-#         print("ds")
-#         if it:
-#             print("salammm")
-#             update=f"""UPDATE DC_users SET branch = '{newbranch}'
-# WHERE username='{username}' AND password='{hashed_password}'"""
-#             r=cursor.execute(update)
-#             conn.commit()
-#             return {"status": "True"}
-#         else:
-#             return {"status": "noBranchFound"}
+        # Check if the user exists and the provided password matches the stored hashed password
+        hashed_password = hashlib.sha256(password.encode()).hexdigest()
+        print("nnn")
+        print(newbranch)
+        checkBranch=f"""SELECT * FROM DC_items WHERE Branch='{newbranch}' LIMIT 1"""
+        r=cursor.execute(checkBranch)
+        print("kkk")
+        it= cursor.fetchall()
+        conn.commit()
+        print("ds")
+        if it:
+            print("salammm")
+            update=f"""UPDATE DC_users SET branch = '{newbranch}'
+WHERE username='{username}' AND password='{hashed_password}'"""
+            r=cursor.execute(update)
+            conn.commit()
+            return {"status": "True"}
+        else:
+            return {"status": "noBranchFound"}
 
-#     except Exception as e:
-#         conn.rollback()
-#         raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
                
-#     finally:
-#         conn.close()
+    finally:
+        conn.close()
 
 
 
@@ -329,9 +248,8 @@ async def list_inventories(dbName,username):
      
         rows= cursor.fetchall()
         if rows:
-            # for name in rows:
-            #     print(name[0])
-            #     tables_names.append(name[0])
+
+
             table_names = [row[0] for row in rows]
             print(table_names)
             return {"status":True,"message": f"Tables starting with '{username}_': {"tabe_names"}","result":table_names}
@@ -352,7 +270,7 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
     print(inventory)
 
     try:
-        query = f"""SELECT * FROM {inventory} WHERE (itemNumber=UPPER('{itemNumber}') OR GOID=UPPER('{itemNumber}')) AND Branch=UPPER('{branch}') LIMIT 1"""
+        query = f"""SELECT * FROM {inventory} WHERE itemNumber=UPPER('{itemNumber}')AND Branch=UPPER('{branch}') LIMIT 1"""
         print(query)
 
         cursor.execute(query)
@@ -362,18 +280,16 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
         conn.commit()
         print(query)
         if rows:
-            print("salam")
-            # for name in rows:
-            #     print(name[0])
-            #     tables_names.append(name[0])
+
+
             for row in rows:
                 try:
-                    print("hhhhhhh3")
+
                     with open(row[12],"rb") as image_file:
                         image_binary = image_file.read()
                         image_base64 = base64.b64encode(image_binary).decode("utf-8")
                         image_value=image_base64
-                        print("hhhhhh")
+
                 except :
                     image_value=''
                     print('henege')
@@ -396,17 +312,18 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                     "Disc3":row[15],
                     "Qunit":row[16]
                 }
+                print(item)
                 return {"status":True,"message":"The item is fetched from the inventory table","item":item}     
         else:
             ifound='1'
 
-            items_query = f"""SELECT * FROM DC_items WHERE (itemNumber=UPPER('{itemNumber}') OR GOID=UPPER('{itemNumber}')) AND Branch=UPPER('{branch}') LIMIT 1"""
+            items_query = f"""SELECT * FROM DC_items WHERE itemNumber=UPPER('{itemNumber}') AND Branch=UPPER('{branch}') LIMIT 1"""
     
             items_result =  cursor.execute(items_query)
             Allitems= cursor.fetchall()
             if Allitems==[]:
                 ifound='2'
-                items_query = f"""SELECT * FROM DC_items WHERE (itemNumber=UPPER('{itemNumber}') OR GOID=UPPER('{itemNumber}')) LIMIT 1"""
+                items_query = f"""SELECT * FROM DC_items WHERE itemNumber=UPPER('{itemNumber}') LIMIT 1"""
     
             items_result =  cursor.execute(items_query)
             Allitems= cursor.fetchall()
@@ -506,8 +423,8 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
 
                         
                         try:
-                            queryGetItem=f"SELECT * FROM {inventory} WHERE (itemNumber=%s OR GOID=%s) AND Branch=%s LIMIT 1"
-                            data=(itemNumber.upper(),itemNumber.upper(),branch.upper())
+                            queryGetItem=f"SELECT * FROM {inventory} WHERE itemNumber=%s AND Branch=%s LIMIT 1"
+                            data=(itemNumber.upper(),branch.upper())
                             print("hkm")
                             
                             cursor.execute(queryGetItem,data)
@@ -565,7 +482,7 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
 
 
 @app.post("/createInventory/")
-async def list_ItemInventories(dbName,username,inventory):
+async def create_Inventory(dbName,username,inventory):
     conn = mysql.connector.connect(
    user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
     cursor = conn.cursor()
@@ -635,3 +552,53 @@ ENGINE=InnoDB
     finally:
         conn.close()
 
+
+
+
+@app.post("/createItem/")
+async def create_Item(itemNumber,itemName,inventory,dbName,branch,handQuantity):
+    conn = mysql.connector.connect(
+   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+    cursor = conn.cursor()
+
+
+    insert_query = (f"INSERT INTO {inventory} (itemName, itemNumber, GOID, Branch, quantity, S1, S2, S3, handQuantity, vat, sp, costPrice, image, Disc1, Disc2, Disc3, Qunit)" 
+"VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+    )
+    itemNumber_value=itemNumber.upper()
+    goid_value=itemNumber.upper()
+    itemName_value=itemName.upper()
+    branch_value=branch.upper()
+    handQuantity_value=handQuantity
+    Qunit=1
+    data = (
+    itemName_value,
+    itemNumber_value,
+    goid_value,
+    branch_value,
+    0,
+    0,
+    0,
+    0,
+    handQuantity_value,
+    0,
+    "",
+    0,
+    "",
+    0,
+    0,
+    0,
+    Qunit
+    )
+    print(insert_query)
+    try:
+        print('llll')
+        print(insert_query)
+        cursor.execute(insert_query, data)
+        conn.commit()
+        return {"status": True,"message":"Item inserted successfully"}
+        
+
+    except Exception as e:
+        conn.rollback()
+        return {"status":False,"message": f"Error checking tables: {str(e)}","item":"empty"}
