@@ -602,3 +602,38 @@ async def create_Item(itemNumber,itemName,inventory,dbName,branch,handQuantity):
     except Exception as e:
         conn.rollback()
         return {"status":False,"message": f"Error checking tables: {str(e)}","item":"empty"}
+
+
+
+@app.get("/getAllItems/")
+async def create_Inventory(dbName):
+    conn = mysql.connector.connect(
+   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+    cursor = conn.cursor()
+
+    getAllItems = f"""SELECT * FROM dc_items"""
+    cursor.execute(getAllItems)
+    result = cursor.fetchall()
+    items_list=[]
+    for itemRow in result:
+        item = {
+            "itemName": itemRow[2],
+            "itemNumber": itemRow[0],
+            "GOID":itemRow[1],
+            "Branch": itemRow[3],
+            "quantity":itemRow[4],
+            "S1": itemRow[5],
+            "S2": itemRow[6],
+            "S3": itemRow[7],
+            "handQuantity": itemRow[8],
+            "vat": itemRow[9],
+            "sp": itemRow[10],
+            "costPrice": itemRow[11], 
+            "image": "",
+            "Disc1":itemRow[13],
+            "Disc2":itemRow[14],
+            "Disc3":itemRow[15],
+            "Qunit":itemRow[16]
+                }
+        items_list.append(item)
+    return items_list
