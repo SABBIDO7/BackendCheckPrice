@@ -141,7 +141,7 @@ WHERE itemNumber = UPPER('{itemNumber}') GROUP BY branch"""
                 print("total :")
                 print(tot)
             totalQunatity=tot[0]
-            print(item)
+            print(item_quantities)
             return {"item":item,"itemQB":item_quantities,"totalQuantity":totalQunatity,"branches_number":branches_number}             
     else:
         return {"item": "empty"} 
@@ -636,4 +636,5 @@ async def create_Inventory(dbName):
             "Qunit":itemRow[16]
                 }
         items_list.append(item)
+    print(items_list)
     return items_list
