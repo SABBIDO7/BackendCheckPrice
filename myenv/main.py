@@ -1,4 +1,5 @@
 import base64
+import json
 from annotated_types import UpperCase
 from fastapi import FastAPI, HTTPException,status
 from fastapi.middleware.cors import CORSMiddleware
@@ -170,7 +171,7 @@ WHERE itemNumber=UPPER('{itemNumber}')"""
 
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+        return {"status": False, "message": f"error : {e}"}
 
     
 
@@ -270,7 +271,7 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
     print(inventory)
 
     try:
-        query = f"""SELECT * FROM {inventory} WHERE itemNumber=UPPER('{itemNumber}')AND Branch=UPPER('{branch}') LIMIT 1"""
+        query = f"""SELECT * FROM {inventory} WHERE itemNumber=UPPER('{itemNumber}') AND Branch=UPPER('{branch}') LIMIT 1"""
         print(query)
 
         cursor.execute(query)
@@ -638,3 +639,18 @@ async def create_Inventory(dbName):
         items_list.append(item)
     print(items_list)
     return items_list
+
+@app.post("/uploadData/")
+async def upload_data(dbName,result,result2):
+    conn = mysql.connector.connect(
+   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+    cursor = conn.cursor()
+    res=[{"key1":[{"itemNumber": 123456, "GOID": "Sohat"}]},{"key2":[{"itemNumber": 123456, "GOID": "Sohat"}]}]
+    print(result)
+    print(result2)
+    
+
+     
+    #print(result)
+    # for row in result:
+    #     print(row[0]+"\n")
