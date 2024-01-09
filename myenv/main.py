@@ -1,7 +1,8 @@
 import base64
 import json
 from annotated_types import UpperCase
-from fastapi import FastAPI, HTTPException,status
+from fastapi import FastAPI, HTTPException, Request,status
+from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 import hashlib
 import mysql.connector
@@ -501,19 +502,19 @@ async def create_Inventory(dbName,username,inventory):
         rows = cursor.fetchall()
         conn.commit()
         if rows:
-            print("fet")
+           
             for row in rows:
                 table_name=row[0]
-                print("hohohoho")
-                print(table_name)
+                
+                
             
                 return {"status":False,"message": f"Table name already exsists","result":table_name}
         else:
-            print("heyy you can create")
+            
             username=username.upper()
             inventory=inventory.upper()
             formatted_datetime=formatted_datetime.upper()
-            print(username)
+            
             create_query=f"""CREATE TABLE `DC_{username}_{inventory}_{formatted_datetime}` (
 	`itemNumber` VARCHAR(20) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
 	`GOID` VARCHAR(20) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
@@ -537,14 +538,14 @@ COLLATE='utf8mb4_general_ci'
 ENGINE=InnoDB
 ;
 """
-        print(create_query)
+     
         create_result =  cursor.execute(create_query)
         conn.commit()
 
         checkQuery=f"""SELECT table_name FROM information_schema.tables WHERE table_schema = '{dbName}' AND table_name like UPPER('DC_{username}_{inventory}%')"""
         check_result= cursor.execute(checkQuery)
         rows = cursor.fetchall()
-        print(rows)
+       
         if rows:
             return {"status":True,"message": f"No tables found starting with '_'","result":rows[0]}
     except Exception as e:
@@ -591,10 +592,9 @@ async def create_Item(itemNumber,itemName,inventory,dbName,branch,handQuantity):
     0,
     Qunit
     )
-    print(insert_query)
+  
     try:
-        print('llll')
-        print(insert_query)
+       
         cursor.execute(insert_query, data)
         conn.commit()
         return {"status": True,"message":"Item inserted successfully"}
@@ -637,20 +637,143 @@ async def create_Inventory(dbName):
             "Qunit":itemRow[16]
                 }
         items_list.append(item)
-    print(items_list)
+    
     return items_list
 
 @app.post("/uploadData/")
-async def upload_data(dbName,result,result2):
+async def upload_data(request: Request):
+    data = await request.json()
+    # json_compatible_item_data = jsonable_encoder(request)
+    # print(json_compatible_item_data)
+    dbName = request.query_params.get("dbName")
+    result = data.get("result")
+    tablesName = data.get("result2")
+    # print(dbName)
     conn = mysql.connector.connect(
    user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
     cursor = conn.cursor()
-    res=[{"key1":[{"itemNumber": 123456, "GOID": "Sohat"}]},{"key2":[{"itemNumber": 123456, "GOID": "Sohat"}]}]
-    print(result)
-    print(result2)
-    
+  
+    #print(result[0][0]["itemNumber"])
+    i=0
+    for res in result:
+        print(tablesName[i])
+        resCreation=await createOfflineInventories(dbName=dbName,inventory=tablesName[i])
+        if resCreation["status"]==True:
+            for eachRow in res:
+             
+                itemRes = await insertOfflineItems(dbName=dbName,item=eachRow,inventory=tablesName[i])
+                if itemRes==False:
+                    
+                    return {"status":False,"message":"Error while inserting items"}
+              
+            i+=1
+        else:
+       
+            return{"status":False,"message":"Error in creating inventory table"}
+async def createOfflineInventories(dbName,inventory):
+    conn = mysql.connector.connect(
+   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+    cursor = conn.cursor()
 
+    
+    query = f"""SELECT table_name FROM information_schema.tables WHERE table_schema = '{dbName}' AND table_name = UPPER('{inventory}')"""
+    try:
+        check_TABLE =  cursor.execute(query)
+        row = cursor.fetchone()
+      
+        if row:
+          
+            return {"status":False,"message": "table already exsist"}
+        else:
+
+
+
+            create_query=f"""CREATE TABLE `{inventory}` (
+            `itemNumber` VARCHAR(20) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+            `GOID` VARCHAR(20) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+            `itemName` VARCHAR(120) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+            `Branch` VARCHAR(10) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+            `quantity` DOUBLE NULL DEFAULT NULL,
+            `S1` DOUBLE NULL DEFAULT NULL,
+            `S2` DOUBLE NULL DEFAULT NULL,
+            `S3` DOUBLE NULL DEFAULT NULL,
+            `handQuantity` DOUBLE NULL DEFAULT NULL,
+            `vat` DOUBLE NULL DEFAULT NULL,
+            `sp` VARCHAR(5) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+            `costPrice` DOUBLE NULL DEFAULT NULL,
+            `image` VARCHAR(150) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+            `Disc1` DOUBLE NULL DEFAULT NULL,
+            `Disc2` DOUBLE NULL DEFAULT NULL,
+            `Disc3` DOUBLE NULL DEFAULT NULL,
+            `Qunit` DOUBLE NULL DEFAULT NULL
+        )
+        COLLATE='utf8mb4_general_ci'
+        ENGINE=InnoDB
+        ;
+        """
+            print(create_query)
+            try:
+                create_result =  cursor.execute(create_query)
+
+                conn.commit()
+              
+                return {"status":True}
+            except Exception as e:
+                
+                conn.rollback()
+                return {"status":False,"message": f"Error checking tables: {str(e)}"}
+
+    except Exception as e:
+        
+        conn.rollback()
+        return {"status":False,"message": f"Error checking tables: {str(e)}"}
+        
+
+async def insertOfflineItems(dbName,item:dict,inventory):
+    conn = mysql.connector.connect(
+   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+    cursor = conn.cursor()
      
-    #print(result)
-    # for row in result:
-    #     print(row[0]+"\n")
+   
+    insert_query = (f"INSERT INTO {inventory} (itemName, itemNumber, GOID, Branch, quantity, S1, S2, S3, handQuantity, vat, sp, costPrice, image, Disc1, Disc2, Disc3, Qunit)" 
+"VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+    )
+    itemNumber_value=item['itemNumber']
+    print(itemNumber_value)
+    goid_value=item['GOID'].upper()
+    itemName_value=item['itemName'].upper()
+    branch_value=item['Branch'].upper()
+    handQuantity_value=item['handQuantity']
+    Qunit=item['Qunit']
+    data = (
+    itemName_value,
+    itemNumber_value,
+    goid_value,
+    branch_value,
+    item['quantity'],
+    item['S1'],
+    item['S2'],
+    item['S3'],
+    handQuantity_value,
+    item['vat'],
+    item['sp'],
+    item['costPrice'],
+    item['image'],
+    item['Disc1'],
+    item['Disc2'],
+    item['Disc3'],
+    Qunit
+    )
+  
+    try:
+        print('llll')
+    
+        cursor.execute(insert_query, data)
+        conn.commit()
+        return {"status": True,"message":"Item inserted successfully"}
+        
+
+    except Exception as e:
+        conn.rollback()
+        return {"status":False,"message": f"Error checking tables: {str(e)}","item":"empty"}
+    
