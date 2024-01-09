@@ -643,8 +643,7 @@ async def create_Inventory(dbName):
 @app.post("/uploadData/")
 async def upload_data(request: Request):
     data = await request.json()
-    # json_compatible_item_data = jsonable_encoder(request)
-    # print(json_compatible_item_data)
+
     dbName = request.query_params.get("dbName")
     result = data.get("result")
     tablesName = data.get("result2")
@@ -652,24 +651,31 @@ async def upload_data(request: Request):
     conn = mysql.connector.connect(
    user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
     cursor = conn.cursor()
-  
-    #print(result[0][0]["itemNumber"])
+
     i=0
     for res in result:
         print(tablesName[i])
         resCreation=await createOfflineInventories(dbName=dbName,inventory=tablesName[i])
-        if resCreation["status"]==True:
+       
+       
+        print(resCreation)
+        if resCreation:
+            print("khashhhh")
             for eachRow in res:
              
                 itemRes = await insertOfflineItems(dbName=dbName,item=eachRow,inventory=tablesName[i])
+                print("ati3")
+
                 if itemRes==False:
-                    
+                    print("meshkleeeee")
                     return {"status":False,"message":"Error while inserting items"}
               
             i+=1
+
         else:
        
-            return{"status":False,"message":"Error in creating inventory table"}
+            return{"status":False}
+    return {"status":True,"message":"Error in creating inventory table"}
 async def createOfflineInventories(dbName,inventory):
     conn = mysql.connector.connect(
    user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
@@ -682,51 +688,61 @@ async def createOfflineInventories(dbName,inventory):
         row = cursor.fetchone()
       
         if row:
+            # Table exists, so delete it
+            delete_query = f"DROP TABLE `{inventory}`"
+            print(f"dallat {inventory}")
           
-            return {"status":False,"message": "table already exsist"}
-        else:
-
-
-
-            create_query=f"""CREATE TABLE `{inventory}` (
-            `itemNumber` VARCHAR(20) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
-            `GOID` VARCHAR(20) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
-            `itemName` VARCHAR(120) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
-            `Branch` VARCHAR(10) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
-            `quantity` DOUBLE NULL DEFAULT NULL,
-            `S1` DOUBLE NULL DEFAULT NULL,
-            `S2` DOUBLE NULL DEFAULT NULL,
-            `S3` DOUBLE NULL DEFAULT NULL,
-            `handQuantity` DOUBLE NULL DEFAULT NULL,
-            `vat` DOUBLE NULL DEFAULT NULL,
-            `sp` VARCHAR(5) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
-            `costPrice` DOUBLE NULL DEFAULT NULL,
-            `image` VARCHAR(150) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
-            `Disc1` DOUBLE NULL DEFAULT NULL,
-            `Disc2` DOUBLE NULL DEFAULT NULL,
-            `Disc3` DOUBLE NULL DEFAULT NULL,
-            `Qunit` DOUBLE NULL DEFAULT NULL
-        )
-        COLLATE='utf8mb4_general_ci'
-        ENGINE=InnoDB
-        ;
-        """
-            print(create_query)
             try:
-                create_result =  cursor.execute(create_query)
-
+                cursor.execute(delete_query)
                 conn.commit()
-              
-                return {"status":True}
-            except Exception as e:
-                
+                print(f"Table {inventory} deleted.")
+                print("meshyeeee")
+        
+            except Exception :
+                print("ayy3")
                 conn.rollback()
-                return {"status":False,"message": f"Error checking tables: {str(e)}"}
+                return False
+          
+        create_query=f"""CREATE TABLE `{inventory}` (
+        `itemNumber` VARCHAR(20) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+        `GOID` VARCHAR(20) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+        `itemName` VARCHAR(120) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+        `Branch` VARCHAR(10) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+        `quantity` DOUBLE NULL DEFAULT NULL,
+        `S1` DOUBLE NULL DEFAULT NULL,
+        `S2` DOUBLE NULL DEFAULT NULL,
+        `S3` DOUBLE NULL DEFAULT NULL,
+        `handQuantity` DOUBLE NULL DEFAULT NULL,
+        `vat` DOUBLE NULL DEFAULT NULL,
+        `sp` VARCHAR(5) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+        `costPrice` DOUBLE NULL DEFAULT NULL,
+        `image` VARCHAR(150) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+        `Disc1` DOUBLE NULL DEFAULT NULL,
+        `Disc2` DOUBLE NULL DEFAULT NULL,
+        `Disc3` DOUBLE NULL DEFAULT NULL,
+        `Qunit` DOUBLE NULL DEFAULT NULL
+    )
+    COLLATE='utf8mb4_general_ci'
+    ENGINE=InnoDB
+    ;
+    """
+       
+        try:
+            create_result =  cursor.execute(create_query)
+
+            conn.commit()
+           
+            return True
+        except Exception as e:
+            
+            conn.rollback()
+            return False
 
     except Exception as e:
         
         conn.rollback()
-        return {"status":False,"message": f"Error checking tables: {str(e)}"}
+        
+        return False
         
 
 async def insertOfflineItems(dbName,item:dict,inventory):
@@ -766,14 +782,65 @@ async def insertOfflineItems(dbName,item:dict,inventory):
     )
   
     try:
-        print('llll')
     
         cursor.execute(insert_query, data)
         conn.commit()
-        return {"status": True,"message":"Item inserted successfully"}
+        return True
         
 
     except Exception as e:
         conn.rollback()
-        return {"status":False,"message": f"Error checking tables: {str(e)}","item":"empty"}
+        return False
+
+@app.post("/deleteInventory/")
+async def deleteInventory(inventory,dbName):
+    conn = mysql.connector.connect(
+   user='root', password='root', host='localhost', database=f'backup_{dbName}',port=3307)
+    cursor = conn.cursor()
+    create_query=f"""CREATE TABLE `{inventory}` (
+        `itemNumber` VARCHAR(20) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+        `GOID` VARCHAR(20) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+        `itemName` VARCHAR(120) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+        `Branch` VARCHAR(10) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+        `quantity` DOUBLE NULL DEFAULT NULL,
+        `S1` DOUBLE NULL DEFAULT NULL,
+        `S2` DOUBLE NULL DEFAULT NULL,
+        `S3` DOUBLE NULL DEFAULT NULL,
+        `handQuantity` DOUBLE NULL DEFAULT NULL,
+        `vat` DOUBLE NULL DEFAULT NULL,
+        `sp` VARCHAR(5) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+        `costPrice` DOUBLE NULL DEFAULT NULL,
+        `image` VARCHAR(150) NULL DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+        `Disc1` DOUBLE NULL DEFAULT NULL,
+        `Disc2` DOUBLE NULL DEFAULT NULL,
+        `Disc3` DOUBLE NULL DEFAULT NULL,
+        `Qunit` DOUBLE NULL DEFAULT NULL
+    )
+    COLLATE='utf8mb4_general_ci'
+    ENGINE=InnoDB
+    ;
+    """
+    try:
+        create_result =  cursor.execute(create_query)
+
+        conn.commit()
+        ##hal2 select kel lrows w insert bel backup
+        
+
+    except Exception as e:
+        
+        conn.rollback()
+        return False
+    delete_query = f"DROP TABLE `{inventory}`"
+    print(f"dallat {inventory}")
     
+    try:
+        cursor.execute(delete_query)
+        conn.commit()
+        print(f"Table {inventory} deleted.")
+        return {"status":True}
+
+    except Exception :
+        print("ayy3")
+        conn.rollback()
+        return {"status":False,"message":"Error while Dropping table."}
