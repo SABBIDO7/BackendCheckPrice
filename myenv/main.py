@@ -668,12 +668,13 @@ async def upload_data(request: Request):
 
                 if itemRes==False:
                     print("meshkleeeee")
+                    conn.rollback()
                     return {"status":False,"message":"Error while inserting items"}
               
             i+=1
 
         else:
-       
+            conn.rollback()
             return{"status":False}
     return {"status":True,"message":"Error in creating inventory table"}
 async def createOfflineInventories(dbName,inventory):
@@ -694,7 +695,7 @@ async def createOfflineInventories(dbName,inventory):
           
             try:
                 cursor.execute(delete_query)
-                conn.commit()
+                
                 print(f"Table {inventory} deleted.")
                 print("meshyeeee")
         
@@ -830,7 +831,7 @@ async def deleteInventory(inventory,dbName):
     try:
         create_result =  destination_cursor.execute(create_query)
 
-        destination_conn.commit()
+        
                 # Fetch data from the source table
         source_cursor.execute(f"SELECT * FROM {inventory}")
         rows = source_cursor.fetchall()
@@ -840,14 +841,20 @@ async def deleteInventory(inventory,dbName):
             try:
                 print("h1")
                 destination_cursor.execute(f"INSERT INTO {inventory} VALUES {row}")
+                destination_conn.commit()  # Commit the change for each successful row
+
             except Exception as e:
                 print("ayyyy444")
+                source_conn.rollback()
+                destination_conn.rollback()
                 return {"status": False, "message": f"Error while cloning items: {str(e)}"}
 
-        destination_conn.commit()
+        
         
 
     except Exception as e:
+        source_conn.rollback()
+        destination_conn.rollback()
         return {"status": False, "message": f"Error cloning table: {str(e)}"}
 
         ##hal2 select kel lrows w insert bel backup
@@ -859,9 +866,12 @@ async def deleteInventory(inventory,dbName):
         source_cursor.execute(delete_query)
         source_conn.commit()
         print(f"Table {inventory} deleted.")
+        source_conn.commit()
+        destination_conn.commit()
         return {"status":True}
 
     except Exception :
         print("ayy3")
         source_conn.rollback()
+        destination_conn.rollback()
         return {"status":False,"message":"Error while Dropping table."}
