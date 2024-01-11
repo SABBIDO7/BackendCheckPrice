@@ -242,7 +242,7 @@ async def list_inventories(dbName,username):
     conn = mysql.connector.connect(
    user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
     cursor = conn.cursor()
-    query = f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{dbName}' AND table_name LIKE UPPER('DC_{username}\\_%')"
+    query = f"SELECT table_name, UPDATE_TIME FROM information_schema.tables WHERE table_schema = '{dbName}' AND table_name LIKE UPPER('DC_{username}\\_%') ORDER BY UPDATE_TIME DESC"
 
     try:
 
@@ -254,7 +254,13 @@ async def list_inventories(dbName,username):
 
             table_names = [row[0] for row in rows]
             print(table_names)
-            return {"status":True,"message": f"Tables starting with '{username}_': {"tabe_names"}","result":table_names}
+            table_info = []
+            for row in rows:
+                row_count_query = f"SELECT COUNT(*) FROM {row[0]}"
+                cursor.execute(row_count_query)
+                row_count = cursor.fetchone()[0]
+                table_info.append({"table_name": row[0], "row_count": row_count,"update_time":row[1]})
+            return {"status":True,"message": f"Tables starting with '{username}_': {"tabe_names"}","result":table_info}
         else:
 
             return {"status":False,"message": f"No tables found starting with '{username}_'","result":[]}
