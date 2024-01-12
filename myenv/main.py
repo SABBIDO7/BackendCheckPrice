@@ -636,7 +636,7 @@ async def create_Inventory(dbName):
             "vat": itemRow[9],
             "sp": itemRow[10],
             "costPrice": itemRow[11], 
-            "image": "",
+            "image": itemRow[12],
             "Disc1":itemRow[13],
             "Disc2":itemRow[14],
             "Disc3":itemRow[15],
