@@ -287,6 +287,18 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
         rows = cursor.fetchall()
         conn.commit()
         print(query)
+        if rows==[]:
+            print("abel mayfut")
+            print(itemNumber)
+            print("fettttt")
+            itemNumberWith0='0'+itemNumber
+            print(itemNumberWith0)
+            query = f"""SELECT * FROM {inventory} WHERE itemNumber=UPPER('{itemNumberWith0}') AND Branch=UPPER('{branch}') LIMIT 1"""
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            conn.commit()
+
+        
         if rows:
 
 
@@ -332,15 +344,26 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
             if Allitems==[]:
                 ifound='2'
                 items_query = f"""SELECT * FROM DC_items WHERE itemNumber=UPPER('{itemNumber}') LIMIT 1"""
+
     
             items_result =  cursor.execute(items_query)
             Allitems= cursor.fetchall()
-
+            if Allitems==[]:
+                print("abel 0 :")
+                print(itemNumber)
+                itemNumberDcItemsWith0='0'+itemNumber
+                
+                print("maa 0 : ")
+                print(itemNumberDcItemsWith0)
+                items_query = f"""SELECT * FROM DC_items WHERE itemNumber=UPPER('{itemNumberDcItemsWith0}') LIMIT 1"""
+                cursor.execute(items_query)
+                Allitems= cursor.fetchall()
             if Allitems:
                 print("sahih")
                 for items in Allitems:
                     items_row= [str(item) for item in items]
-                    if items_row:         
+                    if items_row:  
+                        print("lkio")       
                         itemName_value = items_row[2]
                         itemNumber_value = items_row[0]
                         goid_value = items_row[1]
@@ -432,7 +455,7 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
                         
                         try:
                             queryGetItem=f"SELECT * FROM {inventory} WHERE itemNumber=%s AND Branch=%s LIMIT 1"
-                            data=(itemNumber.upper(),branch.upper())
+                            data=(itemNumber_value.upper(),branch.upper())
                             print("hkm")
                             
                             cursor.execute(queryGetItem,data)
