@@ -48,6 +48,16 @@ async def authenticate_user(itemNumber,branch,dbName):
     items_query = f"""SELECT * FROM DC_items WHERE itemNumber=UPPER('{itemNumber}') LIMIT 1"""
     items_result =  cursor.execute(items_query)
     Allitems= cursor.fetchall()
+    if Allitems==[]:
+        print("abel 0 :")
+        print(itemNumber)
+        itemNumber='0'+itemNumber
+        
+        print("maa 0 : ")
+        print(itemNumber)
+        items_query = f"""SELECT * FROM DC_items WHERE itemNumber=UPPER('{itemNumber}') LIMIT 1"""
+        cursor.execute(items_query)
+        Allitems= cursor.fetchall()
     if Allitems:
         for items in Allitems:
             items_row= [str(item) for item in items]
