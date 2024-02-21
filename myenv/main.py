@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import hashlib
 import mysql.connector
 from datetime import datetime
-
+dbHost='80.81.158.76'
 app = FastAPI()
 
 
@@ -26,22 +26,37 @@ async def authenticate_user(username, branch,dbName):
     try:
         print("falcommmmm");   # Query the database for the user with the specified username
         conn = mysql.connector.connect(
-   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
-        cursor = conn.cursor()
-
-        return {"status":True}
+   user='root', password="Hkms0ft", host=dbHost, database=f'{dbName}',port=9988)
+        
+        try:
+            conn2 = mysql.connector.connect(
+   user='root', password="Hkms0ft", host=dbHost, database="python",port=9988)
+            cursor = conn2.cursor()
+            
+            checkSubscription=f"""SELECT username,checkprice FROM users WHERE compcode='{dbName}' AND username='{username}' """
+            print(checkSubscription)
+            cursor.execute(checkSubscription)
+            
+            check = cursor.fetchone()
+            print("hry")
+            if check:
+                if check[1]!="N":
+                    return {"status":True}
+                else:
+                    return{"status":False,"message":"Check your Subscription"}
+            else:
+                return {"status":False,"message":"Invalid Username"}
+        except Exception as e:
+            return {"status": False, "message": "Database does not exist or connection failed"}
     except Exception as e:
         # Handle the error when the database doesn't exist
-        return {"status": False, "error": "Database does not exist or connection failed"}
-    finally:
-        conn.close()
-
+        return {"status": False, "message": "Database does not exist or connection failed"}
     
 @app.get("/getItem/")
 async def authenticate_user(itemNumber,branch,dbName):
 
     conn = mysql.connector.connect(
-   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+   user='root', password="Hkms0ft", host=dbHost, database=f'{dbName}',port=9988)
     cursor = conn.cursor()
     
     # Query the database for the user with the specified username
@@ -163,7 +178,7 @@ WHERE itemNumber = UPPER('{itemNumber}') GROUP BY branch"""
 @app.post("/handeQuantity_update/")
 async def handQuantity_update(itemNumber,handQuantity:float,branch,dbName, inventory,oldHandQuantity:float):
     conn = mysql.connector.connect(
-   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+   user='root', password="Hkms0ft", host=dbHost, database=f'{dbName}',port=9988)
     cursor = conn.cursor()
 
 
@@ -193,7 +208,7 @@ WHERE itemNumber=UPPER('{itemNumber}')"""
 async def change_branch(username, password, newbranch, dbName):
     # Query the database for the user with the specified username
     conn = mysql.connector.connect(
-   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+   user='root', password="Hkms0ft", host=dbHost, database=f'{dbName}',port=9988)
     cursor = conn.cursor()
 
     try:
@@ -230,7 +245,7 @@ WHERE username='{username}' AND password='{hashed_password}'"""
 @app.get("/getBranches/")
 async def list_branches(dbName):
     conn = mysql.connector.connect(
-   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+   user='root', password="Hkms0ft", host=dbHost, database=f'{dbName}',port=9988)
     cursor = conn.cursor()
     # Query the database for the user with the specified username
     try:
@@ -250,7 +265,7 @@ async def list_branches(dbName):
 @app.get("/getInventories/")
 async def list_inventories(dbName,username):
     conn = mysql.connector.connect(
-   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+   user='root', password="Hkms0ft", host=dbHost, database=f'{dbName}',port=9988)
     cursor = conn.cursor()
     query = f"SELECT table_name, UPDATE_TIME FROM information_schema.tables WHERE table_schema = '{dbName}' AND table_name LIKE UPPER('DC_{username}\\_%') ORDER BY UPDATE_TIME DESC"
 
@@ -283,7 +298,7 @@ async def list_inventories(dbName,username):
 @app.get("/getInventoryItem/")
 async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
     conn = mysql.connector.connect(
-   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+   user='root', password="Hkms0ft", host=dbHost, database=f'{dbName}',port=9988)
     cursor = conn.cursor()
     print(inventory)
 
@@ -525,7 +540,7 @@ async def list_ItemInventories(itemNumber,branch,dbName,username,inventory):
 @app.post("/createInventory/")
 async def create_Inventory(dbName,username,inventory):
     conn = mysql.connector.connect(
-   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+   user='root', password="Hkms0ft", host=dbHost, database=f'{dbName}',port=9988)
     cursor = conn.cursor()
 
     query = f"""SELECT table_name FROM information_schema.tables WHERE table_schema = '{dbName}' AND table_name like UPPER('DC_{username}_{inventory}%')"""
@@ -599,7 +614,7 @@ ENGINE=InnoDB
 @app.post("/createItem/")
 async def create_Item(itemNumber,itemName,inventory,dbName,branch,handQuantity):
     conn = mysql.connector.connect(
-   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+   user='root', password="Hkms0ft", host=dbHost, database=f'{dbName}',port=9988)
     cursor = conn.cursor()
 
 
@@ -648,7 +663,7 @@ async def create_Item(itemNumber,itemName,inventory,dbName,branch,handQuantity):
 @app.get("/getAllItems/")
 async def create_Inventory(dbName):
     conn = mysql.connector.connect(
-   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+   user='root', password="Hkms0ft", host=dbHost, database=f'{dbName}',port=9988)
     cursor = conn.cursor()
 
     getAllItems = f"""SELECT * FROM dc_items"""
@@ -688,7 +703,7 @@ async def upload_data(request: Request):
     tablesName = data.get("result2")
     # print(dbName)
     conn = mysql.connector.connect(
-   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+   user='root', password="Hkms0ft", host=dbHost, database=f'{dbName}',port=9988)
     cursor = conn.cursor()
 
     i=0
@@ -718,7 +733,7 @@ async def upload_data(request: Request):
     return {"status":True,"message":"Error in creating inventory table"}
 async def createOfflineInventories(dbName,inventory):
     conn = mysql.connector.connect(
-   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+   user='root', password="Hkms0ft", host=dbHost, database=f'{dbName}',port=9988)
     cursor = conn.cursor()
 
     
@@ -787,7 +802,7 @@ async def createOfflineInventories(dbName,inventory):
 
 async def insertOfflineItems(dbName,item:dict,inventory):
     conn = mysql.connector.connect(
-   user='root', password='root', host='localhost', database=f'{dbName}',port=3307)
+   user='root', password="Hkms0ft", host=dbHost, database=f'{dbName}',port=9988)
     cursor = conn.cursor()
      
    
@@ -835,13 +850,13 @@ async def insertOfflineItems(dbName,item:dict,inventory):
 @app.post("/deleteInventory/")
 async def deleteInventory(inventory,dbName):
     source_conn = mysql.connector.connect(
-    user='root', password='root', host='localhost', database=dbName, port=3307
+    user='root', password="Hkms0ft", host=dbHost, database=dbName, port=9988
 )
     source_cursor = source_conn.cursor()
 
     # Connect to the destination database
     destination_conn = mysql.connector.connect(
-        user='root', password='root', host='localhost', database=f'{dbName}_backup', port=3307
+        user='root', password="Hkms0ft", host=dbHost, database=f'{dbName}_backup', port=9988
     )
     destination_cursor = destination_conn.cursor()
     create_query=f"""CREATE TABLE `{inventory}` (
