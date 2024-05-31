@@ -24,7 +24,7 @@ app.add_middleware(
 @app.post("/Checkuser/",status_code=status.HTTP_201_CREATED)
 async def authenticate_user(username, branch,dbName):
     try:
-        print("falcommmmm");   # Query the database for the user with the specified username
+        print("falcommmmm")   # Query the database for the user with the specified username
         conn = mysql.connector.connect(
    user='root', password="Hkms0ft", host=dbHost, database=f'{dbName}',port=9988)
         
@@ -32,8 +32,9 @@ async def authenticate_user(username, branch,dbName):
             conn2 = mysql.connector.connect(
    user='root', password="Hkms0ft", host=dbHost, database="python",port=9988)
             cursor = conn2.cursor()
-            
-            checkSubscription=f"""SELECT username,checkprice FROM users WHERE compcode='{dbName}' AND username='{username}' """
+            dbName_upper = dbName.upper()
+            username_upper = username.upper()
+            checkSubscription=f"""SELECT username,checkprice,checkPriceQtyToCol,checkPriceCheckP,checkPriceCostP,checkPriceDeleteInv FROM users WHERE compcode='{dbName_upper}' AND username='{username_upper}' """
             print(checkSubscription)
             cursor.execute(checkSubscription)
             
@@ -41,7 +42,22 @@ async def authenticate_user(username, branch,dbName):
             print("hry")
             if check:
                 if check[1]!="N":
-                    return {"status":True}
+                    qtyToColPage=check[2]
+                    checkPricePage=check[3]
+                    costPrice=check[4]
+                    deleteInv=check[5]
+                    if qtyToColPage!="N":
+                        qtyToColPage="Y"
+                    if checkPricePage!="N":
+                        checkPricePage="Y"
+                    if costPrice!="N":
+                        costPrice="Y"
+                    if deleteInv!="N":
+                        deleteInv="Y"
+                    Permissions={"qtyToColPage":qtyToColPage,"checkPricePage":checkPricePage,"costPrice":costPrice,"deleteInv":deleteInv}
+                    print(Permissions["qtyToColPage"])
+
+                    return {"status":True,"Permissions":Permissions}
                 else:
                     return{"status":False,"message":"Check your Subscription"}
             else:
