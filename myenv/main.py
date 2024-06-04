@@ -56,6 +56,7 @@ async def authenticate_user(username, branch,dbName):
                         deleteInv="Y"
                     Permissions={"qtyToColPage":qtyToColPage,"checkPricePage":checkPricePage,"costPrice":costPrice,"deleteInv":deleteInv}
                     print(Permissions["qtyToColPage"])
+                    print(Permissions["deleteInv"])
 
                     return {"status":True,"Permissions":Permissions}
                 else:
